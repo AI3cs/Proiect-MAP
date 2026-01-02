@@ -1,0 +1,1 @@
+#aici va fi codul principal al programului
