@@ -1,5 +1,12 @@
 # image: docker:stable
 
+dummy_job:
+  script:
+    - echo "Pipeline is temporarily disabled"
+
+# build_job:
+#   stage: build
+# ... (rest is commented out)
 # services:
 #   - docker:dind
 
