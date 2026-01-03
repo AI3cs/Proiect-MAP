@@ -1,29 +1,32 @@
-# [Nume Proiect]
+# Aplicație pentru gestionarea unei biblioteci mici
 
- [Descriere scurtă - 2-3 propozitii despre ce face aplicatia] 
+Un sistem complet de management pentru o bibliotecă mică, scris în Python.
 
 ## Autor 
 
-- **Nume:** [numele tău complet] 
-- **Grupă:** [grupa] 
-- **Email:** [email@student.upt.ro] 
+- **Nume:** [AnufrievAlexandr] 
+- **Grupă:** [1.2] 
+- **Email:** [alexandranufriev@student.upt.ro] 
 - **An academic:** 2025-2026 
 
 ## Descriere 
 
-[Descriere detaliată: ce face aplicatia, de ce este utilă,  ce problemă rezolvă] 
+Library Manager este o aplicație CLI (Command Line Interface)destinată gestionării eficiente a unei biblioteci de dimensiuni mici. Aplicația rezolvă problema organizării fizice și logice a cărților, permițând bibliotecarului să țină o evidență clară a stocului, a utilizatorilor și a împrumuturilor. Prin automatizarea calculelor de penalități și a verificării disponibilității, sistemul elimină erorile umane și simplifică procesul de administrare.
 
-## Tehnologii folosite 
+## Tehnologii folosite
+- **Limbaj:** Python 3.10+
+- **Biblioteci:**
+  - `argparse` - pentru gestionarea argumentelor din linia de comandă
+  - `json` - pentru persistența datelor
+  - `csv` - pentru importul și exportul datelor
+  - `datetime` - pentru gestionarea datelor calendaristice și calculul penalităților
+  - `unittest` - pentru testarea automată a funcționalităților
+- **Tools:** Git, Docker, GitHub Actions
 
-- **Limbaj:** [Python 3.10 / Rust 1.70 / Go 1.21 / etc.] 
-- **Biblioteci:** - [biblioteca1] - [scop] - [biblioteca2] - [scop]
- - **Tools:** Git, Docker, GitHub Actions 
-
-## Cerinte sistem 
-
-- [Compilator/interpretor necesar si versiune] 
-- [Sistem de operare: Windows/Linux/macOS]
- - [Dependente externe] 
+## Cerințe sistem
+- Python 3.10 sau mai nou
+- Sistem de operare: Windows, Linux sau macOS
+- Docker (opțional, pentru rularea în container)
 
 ## Instalare 
 
@@ -32,25 +35,32 @@
  git clone https://github.com/username/project.git 
 cd project
  
-# Instalare dependente 
-[comenzi specifice limbajului] 
+## Exemple de utilizare
 
-# Build (dacă aplicabil)
- [comenzi de compilare] 
-Rulare 
-# Comandă de bază 
-./program --help 
+### 1. Adăugarea unei cărți noi
 
-# Exemple de comenzi 
-./program add "exemplu" 
-./program list 
-Exemple de utilizare 
-Exemplul 1: [Titlu descriptiv] 
-$ ./program comanda --option value 
-Output asteptat... 
-Exemplul 2: [Titlu descriptiv]
- $ ./program alta_comanda 
-Output asteptat . . .
+Adaugă o carte în inventar specificând detaliile necesare.
+```bash
+$ python src/main.py add_book "The Great Gatsby" "F. Scott Fitzgerald" --isbn 9780743273565 --category "Classic"
+```
+
+### 2. Împrumutarea unei cărți
+Înregistrează un împrumut pentru un utilizator existent.
+```bash
+$ python src/main.py borrow "The Great Gatsby" --user_id 1001 --days 14
+```
+
+### 3. Generarea unui raport de întârzieri
+Verifică ce cărți nu au fost returnate la timp și calculează penalitățile.
+```bash
+$ python src/main.py report --overdue
+```
+
+### 4. Căutare avansată
+Caută cărți după un anumit autor.
+```bash
+$ python src/main.py search "Orwell" --type author
+```
 
 [Includeti minimum 5 exemple diverse care demonstrează toate functionalitătile majore] Functionalităti implementate 
 [x] Functionalitate 1 
