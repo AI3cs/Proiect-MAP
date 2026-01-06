@@ -5,9 +5,7 @@ WORKDIR /app
 # Asigurăm că output-ul Python este trimis direct la terminal 
 ENV PYTHONUNBUFFERED=1
 
-# Copiem fisierul de dependende si le instalăm
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Nu avem dependinte externe, folosim doar biblioteca standard Python
 
 # Copiem codul sursă
 COPY src/ ./src/
