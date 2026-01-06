@@ -1,1 +1,28 @@
-#ce va fi ignorat
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Mediu virtual
+venv/
+.venv/
+env/
+
+# Date locale
+data/library_data.json
+data/*.csv
+*.log
+
+# Pastram datele de exemplu
+!data/sample_data.json
+!data/.gitkeep
+
+# Editoare de cod
+.vscode/
+.idea/
+*.swp
+
+# Fisiere sistem de operare
+.DS_Store
+Thumbs.db
