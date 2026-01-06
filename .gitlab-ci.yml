@@ -1,26 +1,27 @@
-# image: docker:stable
+stages:
+  - test
+  - build
 
-dummy_job:
+test_job: 
+  stage:  test
+  image:  python:3.10-slim
   script:
-    - echo "Pipeline is temporarily disabled"
+    - echo "Rulare teste unitare"
+    - python -m unittest discover tests -v
+  only:
+    - main
+    - merge_requests
 
-# build_job:
-#   stage: build
-# ... (rest is commented out)
-# services:
-#   - docker:dind
-
-# before_script:
-#   - docker info
-
-# build:
-#   only:
-#     - main
-#   before_script:
-#    # - docker login registry.gitlab.com -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
-#   script:    
-#     - docker build -t ${CI_REGISTRY_IMAGE}:latest .    
-#     - docker push ${CI_REGISTRY_IMAGE}:latest    
-#   after_script:
-#     - docker logout ${CI_REGISTRY}
-#   stage: build
+build_job: 
+  stage: build
+  image: docker:latest
+  services: 
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "Construire imagine Docker"
+    - docker build -t library-manager .
+    - docker run --rm library-manager --help
+  only:
+    - main
