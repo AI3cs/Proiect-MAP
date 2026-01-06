@@ -12,16 +12,21 @@ test_job:
     - main
     - merge_requests
 
-build_job: 
+build_and_push_job: 
   stage: build
   image: docker:latest
-  services: 
+  services:
     - docker:dind
   variables:
     DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
   script:
-    - echo "Construire imagine Docker"
-    - docker build -t library-manager .
-    - docker run --rm library-manager --help
-  only:
+    - echo "Construire imagine Docker..."
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - echo "Publicare imagine in GitLab Registry..."
+    - docker push $CI_REGISTRY_IMAGE:latest
+  after_script:
+    - docker logout $CI_REGISTRY
+  only: 
     - main
