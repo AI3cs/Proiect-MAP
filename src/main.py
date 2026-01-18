@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import csv
 import json
@@ -60,12 +61,17 @@ class LibraryManager:
     def adauga_carte(self, titlu: str, autor: str, isbn: str = None,
                      categorie: str = None, an: int = None) -> None:
         """Adauga o carte noua in biblioteca"""
-        # Validare ISBN unic
+        # Validare unicitate
         if isbn:
-            for carte in self.date["carti"]:
-                if carte.get("isbn") == isbn:
-                    print(f"EROARE! O carte cu ISBN {isbn} exista deja!")
-                    return
+            # Daca are ISBN, verificam doar dupa ISBN
+            if any(carte.get("isbn") == isbn for carte in self.date["carti"]):
+                print(f"EROARE! O carte cu ISBN {isbn} exista deja!")
+                return
+        else:
+            # Daca NU are ISBN, verificam dupa titlu si autor
+            if any(carte.get("titlu", "").lower() == titlu.lower() and carte.get("autor", "").lower() == autor.lower() for carte in self.date["carti"]):
+                print(f"EROARE! Cartea '{titlu}' de '{autor}' exista deja in biblioteca.")
+                return
 
         # Validare an
         if an:
@@ -276,17 +282,18 @@ class LibraryManager:
             return
 
         print("")
-        print("=" * 70)
+        print("=" * 80)
         print(f"  UTILIZATORI INREGISTRATI ({len(utilizatori)} total)")
-        print("=" * 70)
-        print(f"{'ID':<10} {'Nume':<25} {'Email':<25} {'Impr. Active':<10}")
-        print("-" * 70)
+        print("=" * 80)
+        print(f"{'ID':<10} {'Nume':<25} {'Email':<25} {'Impr. Active':<10} {'Status':<10}")
+        print("-" * 80)
 
         for user in utilizatori:
             nume = user['nume'][:23] + ".." if len(user['nume']) > 25 else user['nume']
             email = user.get('email', 'N/A')[:23] + ".." if len(user.get('email', 'N/A')) > 25 else user.get('email', 'N/A')
-            print(f"{user['id']:<10} {nume:<25} {email:<25} {user.get('imprumuturi_active', 0):<10}")
-        print("=" * 70)
+            status = user.get('status', 'N/A')
+            print(f"{user['id']:<10} {nume:<25} {email:<25} {user.get('imprumuturi_active', 0):<10} {status:<10}")
+        print("=" * 80)
         print("")
 
     def _gaseste_utilizator(self, id_utilizator: str) -> Optional[Dict]:
@@ -313,6 +320,22 @@ class LibraryManager:
         self._salveaza_date()
 
         print(f"\n Utilizatorul '{utilizator['nume']}' a fost dezactivat.\n")
+
+    def reactiveaza_utilizator(self, id_utilizator: str) -> None:
+        """Reactiveaza un utilizator inactiv."""
+        utilizator = self._gaseste_utilizator(id_utilizator)
+        if not utilizator:
+            print(f"EROARE! Utilizatorul cu ID '{id_utilizator}' nu exista!")
+            return
+
+        if utilizator.get('status') == "ACTIV":
+            print(f"Utilizatorul '{utilizator['nume']}' este deja activ.")
+            return
+
+        utilizator['status'] = "ACTIV"
+        self._salveaza_date()
+
+        print(f"\n✓ Utilizatorul '{utilizator['nume']}' a fost reactivat cu succes.\n")
 
     #imprumuturi
 
@@ -856,16 +879,37 @@ def creeaza_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemple de utilizare:
-  %(prog)s add_book "1984" "George Orwell" --isbn 9780451524935 --category "Fiction"
-  %(prog)s add_user "Popescu Ion" --id 1001 --email "ion@example.com"
-  %(prog)s borrow "1984" --user_id 1001 --days 14
-  %(prog)s return "1984" --user_id 1001
+
+  --- Management Cărți ---
+  %(prog)s add_book "1984" "G. Orwell" --isbn 9780451524935 --category "Fiction"
+  %(prog)s list
+  %(prog)s list --status borrowed
   %(prog)s search --author "Orwell"
   %(prog)s search --title "1984"
-  %(prog)s list --status borrowed
-  %(prog)s report --overdue
+  %(prog)s search --isbn "9780451524935"
+  %(prog)s search --category "Fiction"
+  %(prog)s delete_book "1984"
+
+  --- Management Utilizatori ---
+  %(prog)s add_user "Ion Popescu" --id 1001 --email "ion@test.com"
+  %(prog)s list --type users
+  %(prog)s delete_user 1001
+  %(prog)s reactivate_user 1001
+
+  --- Împrumuturi ---
+  %(prog)s borrow "1984" --user_id 1001 --days 14
+  %(prog)s return "1984" --user_id 1001
+
+  --- Rapoarte și Statistici ---
   %(prog)s stats
-  %(prog)s export catalog.csv
+  %(prog)s report --overdue
+  %(prog)s report --borrowed
+  %(prog)s report --popular --top 5
+  %(prog)s report --users --top 3
+
+  --- Import / Export ---
+  %(prog)s export my_export_session
+  %(prog)s import /cale/catre/fisier.csv
         """
     )
 
@@ -916,6 +960,10 @@ Exemple de utilizare:
     # sterge utilizator
     p = subparsers.add_parser("delete_user", help="Dezactiveaza un utilizator")
     p.add_argument("user_id", help="ID-ul utilizatorului")
+
+    # reactiveaza utilizator
+    p = subparsers.add_parser("reactivate_user", help="Reactiveaza un utilizator")
+    p.add_argument("user_id", help="ID-ul utilizatorului de reactivat")
 
     # report
     p = subparsers.add_parser("report", help="Genereaza rapoarte")
@@ -993,6 +1041,9 @@ def main():
 
     elif args.comanda == "delete_user":
         manager.dezactiveaza_utilizator(args.user_id)
+
+    elif args.comanda == "reactivate_user":
+        manager.reactiveaza_utilizator(args.user_id)
 
     elif args.comanda == "report":
         if args.overdue:
