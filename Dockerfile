@@ -1,17 +1,18 @@
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Asigurăm că output-ul Python este trimis direct la terminal 
+# Output-ul Python este trimis direct la terminal 
 ENV PYTHONUNBUFFERED=1
 
-# Nu avem dependinte externe, folosim doar biblioteca standard Python
-
-# Copiem codul sursă
 COPY src/ ./src/
 
 # Creăm folderul pentru date 
 RUN mkdir -p /app/data
 
-# Entrypoint implicit
-ENTRYPOINT ["python", "src/main.py"]
+COPY src/main.py /usr/local/bin/library_manager
+RUN sed -i 's/\r$//' /usr/local/bin/library_manager
+RUN chmod +x /usr/local/bin/library_manager
+
+
+ENTRYPOINT ["library_manager"]
