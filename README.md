@@ -2,19 +2,19 @@
 
 Un sistem complet de management pentru o bibliotecă mică, scris în Python.
 
-## Autor 
+## Autor
 
-- **Nume:** [AnufrievAlexandr] 
-- **Grupă:** [1.2] 
-- **Email:** [alexandranufriev@student.upt.ro] 
-- **An academic:** 2025-2026 
+- **Nume:** Anufriev Alexandr
+- **Grupă:** 1.1
+- **Email:** alexandranufriev@student.upt.ro
+- **An academic:** 2025-2026
 
-## Descriere 
+## Descriere
 
-Library Manager este o aplicație CLI (Command Line Interface)destinată gestionării eficiente a unei biblioteci de dimensiuni mici. Aplicația rezolvă problema organizării fizice și logice a cărților, permițând bibliotecarului să țină o evidență clară a stocului, a utilizatorilor și a împrumuturilor. Prin automatizarea calculelor de penalități și a verificării disponibilității, sistemul elimină erorile umane și simplifică procesul de administrare.
+Library Manager este o aplicație CLI (Command Line Interface) destinată gestionării eficiente a unei biblioteci de dimensiuni mici. Aplicația rezolvă problema organizării cărților, permițând bibliotecarului să țină o evidență clară a stocului, a utilizatorilor și a împrumuturilor. Prin automatizarea calculelor de penalități și a verificării disponibilității, sistemul elimină erorile umane și simplifică procesul de administrare.
 
 ## Tehnologii folosite
-- **Limbaj:** Python 3.10+
+- **Limbaj:** Python 3.12
 - **Biblioteci:**
   - `argparse` - pentru gestionarea argumentelor din linia de comandă
   - `json` - pentru persistența datelor
@@ -24,80 +24,164 @@ Library Manager este o aplicație CLI (Command Line Interface)destinată gestion
 - **Tools:** Git, Docker, GitHub Actions
 
 ## Cerințe sistem
-- Python 3.10 sau mai nou
+- Python 3.12 sau mai nou
 - Sistem de operare: Windows, Linux sau macOS
 - Docker (opțional, pentru rularea în container)
 
-## Instalare 
+## Instalare
 
-```bash 
+```bash
 # Clone repository
- git clone https://github.com/username/project.git 
-cd project
- 
+git clone https://github.com/AI3cs/Proiect-MAP.git
+cd Proiect-MAP
+```
+
 ## Exemple de utilizare
 
 ### 1. Adăugarea unei cărți noi
 
 Adaugă o carte în inventar specificând detaliile necesare.
 ```bash
-$ python src/main.py add_book "The Great Gatsby" "F. Scott Fitzgerald" --isbn 9780743273565 --category "Classic"
+.\library_manager add_book "1984" "G. Orwell" --isbn 9780451524935 --category "Fiction"
 ```
 
 ### 2. Împrumutarea unei cărți
 Înregistrează un împrumut pentru un utilizator existent.
 ```bash
-$ python src/main.py borrow "The Great Gatsby" --user_id 1001 --days 14
+.\library_manager borrow "1984" --user_id 1001 --days 14
 ```
 
 ### 3. Generarea unui raport de întârzieri
 Verifică ce cărți nu au fost returnate la timp și calculează penalitățile.
 ```bash
-$ python src/main.py report --overdue
+.\library_manager report --overdue
 ```
 
 ### 4. Căutare avansată
 Caută cărți după un anumit autor.
 ```bash
-$ python src/main.py search "Orwell" --type author
+.\library_manager search "Orwell" --type author
 ```
 
-[Includeti minimum 5 exemple diverse care demonstrează toate functionalitătile majore] Functionalităti implementate 
-[x] Functionalitate 1 
-[x] Functionalitate 2 
-[x] Functionalitate 3
-[ ] Functionalitate bonus (optional, pentru viitor) 
-Structura proiectului 
-project/ 
-|── src/ 
-|       |── main.py          - [descriere] 
-|       |── module1.py       - [descriere] 
-|       |── module2.py      - [descriere] 
-|── data/ 
-|      └── example.csv      - [descriere] 
-|── tests/ 
-       └── test_main.py     -[descriere]  
-Decizie de design
- [Explicati 2-3 decizii tehnice importante pe care le-ati luat: 
-De ce ati ales această structură de date? 
-De ce acest algoritm si nu altul? 
-Cum ati rezolvat o problemă complexă?] Probleme întâlnite si solutii 
-Problemă: [descriere] Solutie: [cum ati rezolvat] 
-Problemă: [descriere] Solutie: [cum ati rezolvat]
- Testare 
-# Cum să rulati testele 
-[comenzi de test] 
-[Descrieti ce ati testat si cum] 
-Docker 
-# Build imagine 
-docker build -t project-name . 
+### 5. Export de siguranță (Backup)
+Exportă toate datele din sistem într-un folder de backup pentru siguranță.
+```bash
+.\library_manager export backup_folder
+```
 
-# Rulare container 
-docker run project-name [args] Resurse folosite 
-[Link documentatie oficială] [Tutorial relevant] 
-[Stack Overflow thread util]
- [Articol/blog post] 
-Licentă 
-MIT License / GPL / etc. 
-Contact 
-Pentru întrebări: [email] 
+## Funcționalități implementate
+- Gestiune Cărți (Adăugare, Ștergere, Căutare, Listare)
+- Gestiune Utilizatori (Înregistrare, Dezactivare, Reactivare)
+- Sistem Împrumuturi (Check-out, Check-in, Calcul Penalități)
+- Rapoarte și Statistici (Topuri, Grafice ASCII, Filtrare)
+- Persistență Date (Salvare automată în JSON)
+- Import/Export CSV (Migrare date)
+
+## Structura proiectului
+```
+proiect/
+├── src/
+│   └── main.py             - Codul sursă principal al aplicației
+├── data/
+│   └── library_data.json   - Baza de date în format JSON (generată automat)
+├── docs/
+│   └── manual_utilizare.md - Documentație extinsă pentru utilizatori
+├── tests/
+│   ├── __init__.py         - Marker pentru pachetul de teste
+│   └── test_main.py        - Teste unitare
+├── Dockerfile              - Configurare pentru containerizare Docker
+├── library_manager.bat     - Script utilitar pentru rulare rapidă pe Windows
+└── README.md               - Documentația principală a proiectului
+```
+
+## Decizie de design
+1. **Stocare JSON vs SQL**: Am ales să folosesc fișiere JSON pentru stocarea datelor în locul unei baze de date SQL.
+   - *Motiv:* Pentru o bibliotecă mică, setup-ul unui server SQL este o complexitate inutilă. JSON oferă portabilitate maximă (fișierul poate fi copiat/mutat ușor) și este nativ în Python, permițând o dezvoltare rapidă fără dependențe externe grele.
+2. **Arhitectură Monolitică Modulară**: Am păstrat tot codul într-un singur fișier (`main.py`) dar organizat în clasă (`LibraryManager`).
+   - *Motiv:* Simplifică procesul de livrare și rulare pentru utilizator (un singur script de rulat). Structura internă a clasei separă logic metodele de gestionare (cărți, utilizatori, împrumuturi), păstrând codul curat.
+
+## Probleme întâlnite și soluții
+**Problemă:** Ștergerea cărților duplicate (mai multe cărți cu același titlu dar ISBN diferit).
+**Soluție:** Am implementat un sistem de identificare prin ISBN. Dacă utilizatorul cere ștergerea după titlu și există duplicate, sistemul verifică dacă argumentul dat este un ISBN valid și șterge cartea corectă. Astfel, nu se șterg accidental cărțile greșite.
+
+**Problemă:** Pierderea datelor la oprirea aplicației.
+**Soluție:** Am implementat metodele `_load_data` și `_save_data` care sunt apelate automat la inițializare și după fiecare modificare, asigurând persistența datelor în `library_data.json`.
+
+## Testare
+# Cum să rulati testele
+Proiectul include o suită de teste folosind modulul standard `unittest`. Pentru a rula toate testele:
+```bash
+python -m unittest discover tests/ -v
+```
+Am testat scenarii pozitive (adăugare corectă, împrumut reușit) și scenarii negative (împrumut carte inexistentă, validare ISBN duplicat), asigurând robustețea aplicației.
+
+## Docker
+
+### Descărcare imagine (de pe DockerHub)
+```bash
+docker pull alx17608/library-manager:latest
+```
+
+### Rulare container (imagine descărcată)
+```bash
+docker run alx17608/library-manager stats
+```
+
+### Build local
+```bash
+docker build -t library-manager .
+docker run library-manager stats
+```
+
+### 1. Mod Interactiv (Sesiune Shell)
+Ideal pentru a rula mai multe comenzi consecutiv, rămânând în container.
+Pentru a lucra interactiv și a salva datele:
+```bash
+docker run -it -v "${PWD}/data:/app/data" --entrypoint /bin/sh library-manager
+```
+
+Odată intrat în container (shell), rulează comenzile:
+```bash
+library_manager add_book "Hacker" "John Doe"
+library_manager list
+```
+Astfel, chiar dacă ieși din container (`exit`), cărțile adăugate rămân în folderul `data/` de pe calculatorul tău.
+
+
+### 2. Mod Rapid (Comenzi Unice)
+Ideal pentru a rula o singură comandă rapid, din terminalul tău.
+Dacă vrei ca fișierul `library_data.json` să fie salvat **chiar în folderul proiectului tău** (în `data/`), folosește comanda:
+
+1. **Adăugare carte**:
+```powershell
+docker run -v "${PWD}/data:/app/data" library-manager add_book "1984" "Orwell"
+```
+
+2. **Listare cărți**:
+```powershell
+docker run -v "${PWD}/data:/app/data" library-manager list
+```
+
+3. **Export Backup (în folderul windows)**:
+Ca să găsești fișierele exportate pe Windows, trebuie să exporți în subfolderul `data/`:
+```powershell
+docker run -v "${PWD}/data:/app/data" library-manager export data/backup_meu
+```
+Vei găsi folderul `backup_meu` în `D:\proiect map... \data\backup_meu`.
+
+4. **Import (din fișier CSV)**:
+Dacă ai un fișier `carti_noi.csv` în folderul `data/`, îl poți importa așa:
+```powershell
+docker run -v "${PWD}/data:/app/data" library-manager import data/carti_noi.csv
+```
+> **Notă:** Docker vede doar fișierele din folderul `data`. Dacă ai fișierul pe Desktop, **copiază-l întâi în folderul `data`** al proiectului!
+
+Astfel, poți deschide și vedea fișierul `data/library_data.json` direct din Windows!
+
+## Resurse folosite
+- [Documentație Python argparse](https://docs.python.org/3/library/argparse.html)
+- [Python JSON Module](https://docs.python.org/3/library/json.html)
+- [Unit Testing framework](https://docs.python.org/3/library/unittest.html)
+
+## Contact
+Pentru întrebări: alexandranufriev@student.upt.ro
