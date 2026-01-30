@@ -16,6 +16,13 @@ Această aplicație este un sistem de gestiune a bibliotecii care rulează în l
    .\library_manager --help
    ```
 
+### Rulare în Docker (Linux)
+Dacă folosiți Docker, comanda nu necesită prefixul `.\`:
+```bash
+library_manager list
+```
+Pentru detalii despre rularea interactivă cu persistența datelor, consultați `README.md`.
+
 ---
 
 ## 2. Gestiunea Cărților
@@ -36,9 +43,21 @@ Puteți căuta după titlu, autor sau categorie:
 ```
 
 ### Ștergerea unei cărți
-Se poate face după Titlu sau ISBN (recomandat pentru precizie):
+Se poate face după Titlu, ISBN sau ID.
+
+> **Notă:** Dacă există mai multe cărți cu același titlu, aplicația va afișa o listă și vă va întreba care dintre ele doriți să o ștergeți:
+> ```
+> EROARE! Exista 2 carti cu titlul '1984'.
+> Care dintre ele doresti sa o stergi?
+>   [ID: 5] 1984 - Orwell (ISBN: 001)
+>   [ID: 15] 1984 - Orwell (ISBN: 002)
+> Introdu ID-ul corect (sau Enter pentru anulare): _
+> ```
+> Dacă introduceți un ID greșit, aplicația va cere din nou. Pentru a anula, apăsați Enter fără text.
+
+Exemplu de ștergere:
 ```powershell
-.\library_manager delete_book "123456789"
+.\library_manager delete_book "1984"
 ```
 
 ---
@@ -122,7 +141,7 @@ Adaugă cărți dintr-un fișier CSV extern.
 - **id**: Identificator unic numeric (auto-incrementat).
 - **isbn**: Cod ISBN unic.
 - **status**: `DISPONIBIL` sau `IMPRUMUTAT`.
-- **loan_count**: Numărul total de dăți când cartea a fost împrumutată.
+- **loan_count**: Numărul total de ori când cartea a fost împrumutată.
 
 ### Împrumuturi (CSV)
 - **loan_date**: Data de început (YYYY-MM-DD).
