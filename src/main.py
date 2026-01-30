@@ -1,921 +1,1031 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import argparse
 import csv
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+
+# Fix pentru encoding Unicode pe Windows
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Configurare cai fisiere
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, '..', 'data')
 DATA_FILE = os.path.join(DATA_DIR, 'library_data.json')
 DATE_FORMAT = "%Y-%m-%d"
-PENALITATE_PE_ZI = 1  # 1 RON per zi penalitatea in caz de intarziere
+PENALTY_PER_DAY = 1  # 1 RON per zi penalitatea in caz de intarziere
 
-# Creem folderul data daca nu exista
+# Creare folder data daca nu exista
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
+
 
 class LibraryManager:
     """
     Clasa principala pentru gestionarea bibliotecii.
-    Gestioneaza: Carti, Utilizatori, Imprumuturi
+    Gestioneaza: Books, Users, Loans
     """
 
-    def __init__(self, fisier_date: str = DATA_FILE):
+    def __init__(self, data_file: str = DATA_FILE):
         """Initializeaza managerul de biblioteca"""
-        self.fisier_date = fisier_date
-        self.date: Dict[str, List[Dict]] = {
-            "carti": [],
-            "utilizatori": [],
-            "imprumuturi": []
+        self.data_file = data_file
+        self.data: Dict[str, List[Dict]] = {
+            "books": [],
+            "users": [],
+            "loans": []
         }
-        self._incarca_date()
+        self._load_data()
 
-    def _incarca_date(self) -> None:
-        """Incarca datele din fisierul JSON (silentios)"""
-        if os.path.exists(self.fisier_date):
+    def _load_data(self) -> None:
+        """Incarca datele din fisierul JSON"""
+        if os.path.exists(self.data_file):
             try:
-                with open(self.fisier_date, 'r', encoding='utf-8') as f:
-                    date_incarcate = json.load(f)
-                    for cheie in self.date.keys():
-                        if cheie in date_incarcate:
-                            self.date[cheie] = date_incarcate[cheie]
+                with open(self.data_file, 'r', encoding='utf-8') as f:
+                    loaded_data = json.load(f)
+                    for key in self.data.keys():
+                        if key in loaded_data:
+                            self.data[key] = loaded_data[key]
             except json.JSONDecodeError:
-                pass  # Pornim cu baza de date goala
+                pass
 
-    def _salveaza_date(self) -> None:
+    def _save_data(self) -> None:
         """Salveaza datele in fisierul JSON"""
-        with open(self.fisier_date, 'w', encoding='utf-8') as f:
-            json.dump(self.date, f, indent=4, ensure_ascii=False)
+        with open(self.data_file, 'w', encoding='utf-8') as f:
+            json.dump(self.data, f, indent=4, ensure_ascii=False)
 
-    def _genereaza_id_carte(self) -> int:
+    def _generate_book_id(self) -> int:
         """Genereaza un ID unic pentru carte"""
-        if not self.date["carti"]:
+        if not self.data["books"]:
             return 1
-        return max(carte.get("id", 0) for carte in self.date["carti"]) + 1
+        return max(book.get("id", 0) for book in self.data["books"]) + 1
 
-    # Gestionare carti 
-
-    def adauga_carte(self, titlu: str, autor: str, isbn: str = None,
-                     categorie: str = None, an: int = None) -> None:
+    # Gestionare carti
+    
+    def add_book(self, title: str, author: str, isbn: str = None,
+                 category: str = None, year: int = None) -> None:
         """Adauga o carte noua in biblioteca"""
         # Validare unicitate
         if isbn:
-            # Daca are ISBN, verificam doar dupa ISBN
-            if any(carte.get("isbn") == isbn for carte in self.date["carti"]):
+            if any(book.get("isbn") == isbn for book in self.data["books"]):
                 print(f"EROARE! O carte cu ISBN {isbn} exista deja!")
                 return
         else:
-            # Daca NU are ISBN, verificam dupa titlu si autor
-            if any(carte.get("titlu", "").lower() == titlu.lower() and carte.get("autor", "").lower() == autor.lower() for carte in self.date["carti"]):
-                print(f"EROARE! Cartea '{titlu}' de '{autor}' exista deja in biblioteca.")
+            if any(book.get("title", "").lower() == title.lower() and 
+                   book.get("author", "").lower() == author.lower() for book in self.data["books"]):
+                print(f"EROARE! Cartea '{title}' de '{author}' exista deja in biblioteca.")
                 return
 
         # Validare an
-        if an:
-            an_curent = datetime.now().year
-            if an < 1450 or an > an_curent + 1:
-                print(f"EROARE! Anul {an} nu este valid (1450-{an_curent})!")
+        if year:
+            current_year = datetime.now().year
+            if year < 1450 or year > current_year + 1:
+                print(f"EROARE! Anul {year} nu este valid (1450-{current_year})!")
                 return
 
-        carte_noua = {
-            "id": self._genereaza_id_carte(),
-            "titlu": titlu,
-            "autor": autor,
+        new_book = {
+            "id": self._generate_book_id(),
+            "title": title,
+            "author": author,
             "isbn": isbn if isbn else "N/A",
-            "categorie": categorie if categorie else "Necategorizat",
-            "an": an,
+            "category": category if category else "Necategorizat",
+            "year": year,
             "status": "DISPONIBIL",
-            "data_adaugare": datetime.now().strftime(DATE_FORMAT),
-            "nr_imprumuturi": 0
+            "date_added": datetime.now().strftime(DATE_FORMAT),
+            "loan_count": 0
         }
 
-        self.date["carti"].append(carte_noua)
-        self._salveaza_date()
+        self.data["books"].append(new_book)
+        self._save_data()
 
         print("")
-        print("=" * 50)
-        print("      ✓ CARTE ADAUGATA CU SUCCES!")
-        print("=" * 50)
-        print(f"  ID:        {carte_noua['id']}")
-        print(f"  Titlu:     {titlu}")
-        print(f"  Autor:     {autor}")
-        print(f"  ISBN:      {carte_noua['isbn']}")
-        print(f"  Categorie: {carte_noua['categorie']}")
-        if an:
-            print(f"  An:        {an}")
+        print("▀" * 50)
+        print("      CARTE ADAUGATA CU SUCCES!")
+        print("▀" * 50)
+        print(f"  ID:        {new_book['id']}")
+        print(f"  Titlu:     {title}")
+        print(f"  Autor:     {author}")
+        print(f"  ISBN:      {new_book['isbn']}")
+        print(f"  Categorie: {new_book['category']}")
+        if year:
+            print(f"  An:        {year}")
         print(f"  Status:    DISPONIBIL")
-        print(f"  Data:      {carte_noua['data_adaugare']}")
-        print("=" * 50)
+        print(f"  Data:      {new_book['date_added']}")
+        print("▀" * 50)
         print("")
 
-    def listeaza_carti(self, status: str = None) -> None:
+    def list_books(self, status: str = None) -> None:
         """Listeaza toate cartile din biblioteca"""
-        carti = self.date["carti"]
+        books = self.data["books"]
 
-        # Filtrez dupa status
+        # Filtrare dupa status
         if status:
             status_upper = status.upper()
             if status_upper == "BORROWED":
                 status_upper = "IMPRUMUTAT"
             elif status_upper == "AVAILABLE":
                 status_upper = "DISPONIBIL"
-            carti = [c for c in carti if c.get("status", "").upper() == status_upper]
+            books = [b for b in books if b.get("status", "").upper() == status_upper]
 
-        if not carti:
+        if not books:
             if not status:
                 print("\n Nu exista carti in biblioteca.\n")
             else:
                 print(f"\n Nu exista carti cu status '{status}'.\n")
             return
 
-        titlu_text = "CATALOG BIBLIOTECA" if not status else f"CARTI - {status.upper()}"
+        header_text = "CATALOG BIBLIOTECA" if not status else f"CARTI - {status.upper()}"
         print("")
-        print("=" * 75)
-        print(f"  {titlu_text} ({len(carti)} total)")
-        print("=" * 75)
+        print("▀" * 75)
+        print(f"  {header_text} ({len(books)} total)")
+        print("▀" * 75)
         print(f"{'ID':<4} {'Titlu':<28} {'Autor':<22} {'Status':<12} {'Categorie':<10}")
-        print("-" * 75)
+        for book in books:
+            title = book['title'][:26] + ".." if len(book['title']) > 28 else book['title']
+            author = book['author'][:20] + ".." if len(book['author']) > 22 else book['author']
+            print(f"{book['id']:<4} {title:<28} {author:<22} {book['status']:<12} {book.get('category', 'N/A'):<10}")
 
-        for carte in carti:
-            titlu = carte['titlu'][:26] + ".." if len(carte['titlu']) > 28 else carte['titlu']
-            autor = carte['autor'][:20] + ".." if len(carte['autor']) > 22 else carte['autor']
-            status_icon = "✓" if carte['status'] == "DISPONIBIL" else "X"
-            print(f"{carte['id']:<4} {titlu:<28} {autor:<22} {status_icon} {carte['status']:<10} {carte.get('categorie', 'N/A'):<10}")
-
-        print("=" * 75)
+        print("▀" * 75)
         print("")
 
-    def cauta_carti(self, termen: str, tip_cautare: str = "title") -> None:
+    def search_books(self, query: str, search_type: str = "title") -> None:
         """Cauta carti dupa diferite criterii"""
-        termen_lower = termen.lower()
-        rezultate = []
+        query_lower = query.lower()
+        results = []
 
-        for carte in self.date["carti"]:
-            gasit = False
-            if tip_cautare == "title" and termen_lower in carte.get("titlu", "").lower():
-                gasit = True
-            elif tip_cautare == "author" and termen_lower in carte.get("autor", "").lower():
-                gasit = True
-            elif tip_cautare == "isbn" and termen_lower in carte.get("isbn", "").lower():
-                gasit = True
-            elif tip_cautare == "category" and termen_lower in carte.get("categorie", "").lower():
-                gasit = True
+        for book in self.data["books"]:
+            found = False
+            if search_type == "title" and query_lower in book.get("title", "").lower():
+                found = True
+            elif search_type == "author" and query_lower in book.get("author", "").lower():
+                found = True
+            elif search_type == "isbn" and query_lower in book.get("isbn", "").lower():
+                found = True
+            elif search_type == "category" and query_lower in book.get("category", "").lower():
+                found = True
 
-            if gasit:
-                rezultate.append(carte)
+            if found:
+                results.append(book)
 
-        if not rezultate:
-            print(f"\n Nu s-au gasit carti pentru '{termen}' (cautare dupa {tip_cautare})\n")
+        if not results:
+            print(f"\n Nu s-au gasit carti pentru '{query}' (cautare dupa {search_type})\n")
             return
 
         print("")
-        print("=" * 60)
-        print(f"  Rezultate cautare {tip_cautare}: \"{termen}\"")
-        print("=" * 60)
+        print("▀" * 60)
+        print(f"  Rezultate cautare {search_type}: \"{query}\"")
+        print("▀" * 60)
 
-        for i, carte in enumerate(rezultate, 1):
-            status_icon = "✓" if carte['status'] == "DISPONIBIL" else "X"
-            popular = " (Popular!)" if carte.get('nr_imprumuturi', 0) > 10 else ""
+        for i, book in enumerate(results, 1):
+            status_icon = "[OK]" if book['status'] == "DISPONIBIL" else "X"
+            popular = " (Popular!)" if book.get('loan_count', 0) > 10 else ""
 
-            print(f"\n{i}. {carte['titlu']}")
-            print(f"   Autor: {carte['autor']}")
-            print(f"   ISBN: {carte.get('isbn', 'N/A')}")
-            print(f"   Status: {status_icon} {carte['status']}")
+            print(f"\n{i}. {book['title']}")
+            print(f"   Autor: {book['author']}")
+            print(f"   ISBN: {book.get('isbn', 'N/A')}")
+            print(f"   Status: {status_icon} {book['status']}")
 
-            # afiseaza data returnare daca e imprumutata
-            if carte['status'] == "IMPRUMUTAT":
-                for imp in self.date["imprumuturi"]:
-                    if imp.get("id_carte") == carte["id"] and imp.get("status") == "ACTIV":
-                        print(f"   Returnare estimata: {imp.get('data_retur', 'N/A')}")
+            if book['status'] == "IMPRUMUTAT":
+                for loan in self.data["loans"]:
+                    if loan.get("book_id") == book["id"] and loan.get("status") == "ACTIV":
+                        print(f"   Returnare estimata: {loan.get('return_date', 'N/A')}")
                         break
 
-            print(f"   Categorie: {carte.get('categorie', 'N/A')}")
-            if carte.get('an'):
-                print(f"   An publicare: {carte['an']}")
-            print(f"   Imprumuturi totale: {carte.get('nr_imprumuturi', 0)}{popular}")
+            print(f"   Categorie: {book.get('category', 'N/A')}")
+            if book.get('year'):
+                print(f"   An publicare: {book['year']}")
+            print(f"   Imprumuturi totale: {book.get('loan_count', 0)}{popular}")
 
-        print(f"\n  Total gasite: {len(rezultate)} carti")
-        print("=" * 60)
+        print(f"\n  Total gasite: {len(results)} carti")
+        print("▀" * 60)
         print("")
 
-    def _gaseste_carte(self, identificator: str) -> Optional[Dict]:
+    def _find_book(self, identifier: str) -> Optional[Dict]:
         """Gaseste o carte dupa titlu, ISBN sau ID"""
-        for carte in self.date["carti"]:
-            if carte.get("titlu", "").lower() == identificator.lower():
-                return carte
-            if carte.get("isbn", "") == identificator:
-                return carte
-            if str(carte.get("id", "")) == identificator:
-                return carte
+        for book in self.data["books"]:
+            if book.get("title", "").lower() == identifier.lower():
+                return book
+            if book.get("isbn", "") == identifier:
+                return book
+            if str(book.get("id", "")) == identifier:
+                return book
         return None
 
-    def sterge_carte(self, identificator: str) -> None:
+    def delete_book(self, identifier: str) -> None:
         """Sterge o carte din catalog"""
-        carte = self._gaseste_carte(identificator)
+        # Verificare duplicate la titlu
+        matches = [b for b in self.data["books"] if b.get("title", "").lower() == identifier.lower()]
+        if len(matches) > 1:
+            print(f"\nEROARE! Exista {len(matches)} carti cu titlul '{identifier}'.")
+            print("Care dintre ele doresti sa o stergi?")
+            for m in matches:
+                print(f"  [ID: {m['id']}] {m['title']} - {m['author']} (ISBN: {m.get('isbn', 'N/A')})")
+            
+            try:
+                valid_ids = [str(m['id']) for m in matches]
+                while True:
+                    choice = input("\nIntrodu ID-ul corect (sau Enter pentru anulare): ").strip()
+                    if not choice:
+                        print("Operatiune anulata.")
+                        return
+                    if choice not in valid_ids:
+                        print(f"EROARE! ID-ul '{choice}' nu e in lista de mai sus.")
+                        print(f"Introdu unul dintre: {', '.join(valid_ids)}")
+                        continue
+                    # Apelam recursiv cu ID-ul ales
+                    self.delete_book(choice)
+                    return
+            except KeyboardInterrupt:
+                print("\nOperatiune anulata.")
+                return
 
-        if not carte:
-            print(f"EROARE! Cartea '{identificator}' nu a fost gasita!")
+        book = self._find_book(identifier)
+
+        if not book:
+            print(f"EROARE! Cartea '{identifier}' nu a fost gasita!")
             return
 
-        if carte['status'] != "DISPONIBIL":
+        if book['status'] != "DISPONIBIL":
             print("EROARE! Nu poti sterge o carte care este imprumutata!")
             return
 
-        self.date["carti"].remove(carte)
-        self._salveaza_date()
+        self.data["books"].remove(book)
+        self._save_data()
 
-        print(f"\n Cartea '{carte['titlu']}' a fost stearsa din catalog.\n")
+        print(f"\n Cartea '{book['title']}' a fost stearsa din catalog.\n")
 
-    # gestionare utilizatori
+    # Gestionare utilizatori
     
-    def adauga_utilizator(self, nume: str, id_utilizator: str, email: str = None) -> None:
+    def add_user(self, name: str, user_id: str, email: str = None) -> None:
         """Inregistreaza un utilizator nou"""
-        id_utilizator = str(id_utilizator)
+        user_id = str(user_id)
 
-        # Verificare ID unic
-        for user in self.date["utilizatori"]:
-            if str(user.get("id")) == id_utilizator:
-                print(f"EROARE! Un utilizator cu ID {id_utilizator} exista deja!")
+        for user in self.data["users"]:
+            if str(user.get("id")) == user_id:
+                print(f"EROARE! Un utilizator cu ID {user_id} exista deja!")
                 return
 
-        # Validare email
         if email and '@' not in email:
             print("EROARE! Formatul email-ului nu este valid!")
             return
 
-        utilizator_nou = {
-            "id": id_utilizator,
-            "nume": nume,
+        new_user = {
+            "id": user_id,
+            "name": name,
             "email": email if email else "N/A",
-            "data_inregistrare": datetime.now().strftime(DATE_FORMAT),
-            "imprumuturi_active": 0,
-            "total_imprumuturi": 0,
-            "total_penalitati": 0,
+            "registration_date": datetime.now().strftime(DATE_FORMAT),
+            "active_loans": 0,
+            "total_loans": 0,
+            "total_penalties": 0,
             "status": "ACTIV"
         }
 
-        self.date["utilizatori"].append(utilizator_nou)
-        self._salveaza_date()
+        self.data["users"].append(new_user)
+        self._save_data()
 
         print("")
-        print("=" * 50)
-        print("      ✓ UTILIZATOR ADAUGAT CU SUCCES!")
-        print("=" * 50)
-        print(f"  Nume:              {nume}")
-        print(f"  ID:                {id_utilizator}")
-        print(f"  Email:             {utilizator_nou['email']}")
-        print(f"  Data inregistrare: {utilizator_nou['data_inregistrare']}")
+        print("▀" * 50)
+        print("      UTILIZATOR ADAUGAT CU SUCCES!")
+        print("▀" * 50)
+        print(f"  Nume:              {name}")
+        print(f"  ID:                {user_id}")
+        print(f"  Email:             {new_user['email']}")
+        print(f"  Data inregistrare: {new_user['registration_date']}")
         print(f"  Carti imprumutate: 0")
         print(f"  Status:            ACTIV")
-        print("=" * 50)
+        print("▀" * 50)
         print("")
 
-    def listeaza_utilizatori(self) -> None:
+    def list_users(self) -> None:
         """Listeaza toti utilizatorii"""
-        utilizatori = self.date["utilizatori"]
+        users = self.data["users"]
 
-        if not utilizatori:
+        if not users:
             print("\n Nu exista utilizatori inregistrati.\n")
             return
 
         print("")
-        print("=" * 80)
-        print(f"  UTILIZATORI INREGISTRATI ({len(utilizatori)} total)")
-        print("=" * 80)
+        print("▀" * 80)
+        print(f"  UTILIZATORI INREGISTRATI ({len(users)} total)")
+        print("▀" * 80)
         print(f"{'ID':<10} {'Nume':<25} {'Email':<25} {'Impr. Active':<10} {'Status':<10}")
-        print("-" * 80)
+        print("░" * 80)
 
-        for user in utilizatori:
-            nume = user['nume'][:23] + ".." if len(user['nume']) > 25 else user['nume']
+        for user in users:
+            name = user['name'][:23] + ".." if len(user['name']) > 25 else user['name']
             email = user.get('email', 'N/A')[:23] + ".." if len(user.get('email', 'N/A')) > 25 else user.get('email', 'N/A')
             status = user.get('status', 'N/A')
-            print(f"{user['id']:<10} {nume:<25} {email:<25} {user.get('imprumuturi_active', 0):<10} {status:<10}")
-        print("=" * 80)
+            print(f"{user['id']:<10} {name:<25} {email:<25} {user.get('active_loans', 0):<10} {status:<10}")
+        print("▀" * 80)
         print("")
 
-    def _gaseste_utilizator(self, id_utilizator: str) -> Optional[Dict]:
+    def _find_user(self, user_id: str) -> Optional[Dict]:
         """Gaseste un utilizator dupa ID"""
-        id_utilizator = str(id_utilizator)
-        for user in self.date["utilizatori"]:
-            if str(user.get("id")) == id_utilizator:
+        user_id = str(user_id)
+        for user in self.data["users"]:
+            if str(user.get("id")) == user_id:
                 return user
         return None
 
-    def dezactiveaza_utilizator(self, id_utilizator: str) -> None:
+    def deactivate_user(self, user_id: str) -> None:
         """Dezactiveaza un utilizator"""
-        utilizator = self._gaseste_utilizator(id_utilizator)
-        if not utilizator:
-            print(f"EROARE! Utilizatorul cu ID '{id_utilizator}' nu exista!")
+        user = self._find_user(user_id)
+        if not user:
+            print(f"EROARE! Utilizatorul cu ID '{user_id}' nu exista!")
             return
 
-        if utilizator.get('imprumuturi_active', 0) > 0:
-            print(f"EROARE! Utilizatorul are {utilizator['imprumuturi_active']} imprumuturi active!")
+        if user.get('active_loans', 0) > 0:
+            print(f"EROARE! Utilizatorul are {user['active_loans']} imprumuturi active!")
             print("Returneaza cartile inainte de a dezactiva contul.")
             return
 
-        utilizator['status'] = "INACTIV"
-        self._salveaza_date()
+        user['status'] = "INACTIV"
+        self._save_data()
 
-        print(f"\n Utilizatorul '{utilizator['nume']}' a fost dezactivat.\n")
+        print(f"\n Utilizatorul '{user['name']}' a fost dezactivat.\n")
 
-    def reactiveaza_utilizator(self, id_utilizator: str) -> None:
+    def reactivate_user(self, user_id: str) -> None:
         """Reactiveaza un utilizator inactiv."""
-        utilizator = self._gaseste_utilizator(id_utilizator)
-        if not utilizator:
-            print(f"EROARE! Utilizatorul cu ID '{id_utilizator}' nu exista!")
+        user = self._find_user(user_id)
+        if not user:
+            print(f"EROARE! Utilizatorul cu ID '{user_id}' nu exista!")
             return
 
-        if utilizator.get('status') == "ACTIV":
-            print(f"Utilizatorul '{utilizator['nume']}' este deja activ.")
+        if user.get('status') == "ACTIV":
+            print(f"Utilizatorul '{user['name']}' este deja activ.")
             return
 
-        utilizator['status'] = "ACTIV"
-        self._salveaza_date()
+        user['status'] = "ACTIV"
+        self._save_data()
 
-        print(f"\n✓ Utilizatorul '{utilizator['nume']}' a fost reactivat cu succes.\n")
+        print(f"\nUtilizatorul '{user['name']}' a fost reactivat cu succes.\n")
 
-    #imprumuturi
+    # Gestionare imprumuturi
 
-    def imprumuta_carte(self, identificator: str, id_utilizator: str, zile: int = 14) -> None:
-        """Imprumuta o carte (dupa titlu sau ISBN)"""
+    def borrow_book(self, identifier: str, user_id: str, days: int = 14) -> None:
+        """Imprumuta o carte"""
         print("\nVerificare disponibilitate...")
 
-        id_utilizator = str(id_utilizator)
+        user_id = str(user_id)
 
-        # Gasesc cartea
-        carte = self._gaseste_carte(identificator)
-        if not carte:
-            print(f"EROARE! Cartea '{identificator}' nu a fost gasita!")
+        # Verificare ambiguitate (duplicate la titlu)
+        matches = [b for b in self.data["books"] 
+                   if b.get("title", "").lower() == identifier.lower() and b["status"] == "DISPONIBIL"]
+        if len(matches) > 1:
+            print(f"\nExista {len(matches)} carti disponibile cu titlul '{identifier}'.")
+            print("Care dintre ele doresti sa o imprumuti?")
+            for m in matches:
+                print(f"  [ID: {m['id']}] {m['title']} - {m['author']} (ISBN: {m.get('isbn', 'N/A')})")
+            
+            try:
+                valid_ids = [str(m['id']) for m in matches]
+                while True:
+                    choice = input("\nIntrodu ID-ul corect (sau Enter pentru anulare): ").strip()
+                    if not choice:
+                        print("Operatiune anulata.")
+                        return
+                    if choice not in valid_ids:
+                        print(f"EROARE! ID-ul '{choice}' nu e in lista de mai sus.")
+                        print(f"Introdu unul dintre: {', '.join(valid_ids)}")
+                        continue
+                    # Apelam recursiv cu ID-ul ales
+                    self.borrow_book(choice, user_id, days)
+                    return
+            except KeyboardInterrupt:
+                print("\nOperatiune anulata.")
+                return
+
+        book = self._find_book(identifier)
+        if not book:
+            print(f"EROARE! Cartea '{identifier}' nu a fost gasita!")
             return
 
-        # Gasesc utilizatorul
-        utilizator = self._gaseste_utilizator(id_utilizator)
-        if not utilizator:
-            print(f"EROARE! Utilizatorul cu ID '{id_utilizator}' nu exista!")
+        user = self._find_user(user_id)
+        if not user:
+            print(f"EROARE! Utilizatorul cu ID '{user_id}' nu exista!")
             return
 
-        # Verific statusul utilizatorului
-        if utilizator.get('status') != "ACTIV":
+        if user.get('status') != "ACTIV":
             print("EROARE! Contul utilizatorului este inactiv!")
             return
 
-        # Verific disponibilitate cartii
-        if carte["status"] != "DISPONIBIL":
-            print(f"EROARE! Cartea '{carte['titlu']}' nu este disponibila!")
-            for imp in self.date["imprumuturi"]:
-                if imp.get("id_carte") == carte["id"] and imp.get("status") == "ACTIV":
-                    print(f"         Returnare estimata: {imp.get('data_retur', 'N/A')}")
+        if book["status"] != "DISPONIBIL":
+            print(f"EROARE! Cartea '{book['title']}' nu este disponibila!")
+            for loan in self.data["loans"]:
+                if loan.get("book_id") == book["id"] and loan.get("status") == "ACTIV":
+                    print(f"         Returnare estimata: {loan.get('return_date', 'N/A')}")
                     break
             return
 
-        # Validare numar de zile
-        if zile < 1 or zile > 60:
+        if days < 1 or days > 60:
             print("EROARE! Perioada de imprumut trebuie sa fie intre 1 si 60 de zile!")
             return
 
-        print("✓ Carte disponibila!")
-        print("✓ Utilizator valid!")
+        print("Carte disponibila!")
+        print("Utilizator valid!")
 
-        # Creez imprumutul
-        data_imprumut = datetime.now()
-        data_retur = data_imprumut + timedelta(days=zile)
+        loan_date = datetime.now()
+        return_date = loan_date + timedelta(days=days)
 
-        imprumut = {
-            "id": len(self.date["imprumuturi"]) + 1,
-            "id_carte": carte["id"],
-            "titlu_carte": carte["titlu"],
-            "id_utilizator": id_utilizator,
-            "nume_utilizator": utilizator["nume"],
-            "data_imprumut": data_imprumut.strftime(DATE_FORMAT),
-            "data_retur": data_retur.strftime(DATE_FORMAT),
-            "data_returnare_efectiva": None,
+        loan = {
+            "id": len(self.data["loans"]) + 1,
+            "book_id": book["id"],
+            "book_title": book["title"],
+            "user_id": user_id,
+            "user_name": user["name"],
+            "loan_date": loan_date.strftime(DATE_FORMAT),
+            "return_date": return_date.strftime(DATE_FORMAT),
+            "actual_return_date": None,
             "status": "ACTIV",
-            "penalitate": 0
+            "penalty": 0
         }
 
-        self.date["imprumuturi"].append(imprumut)
+        self.data["loans"].append(loan)
 
-        # Actualizez statusul cartii
-        carte["status"] = "IMPRUMUTAT"
-        carte["nr_imprumuturi"] = carte.get("nr_imprumuturi", 0) + 1
+        book["status"] = "IMPRUMUTAT"
+        book["loan_count"] = book.get("loan_count", 0) + 1
 
-        # Actualizez utilizatorul
-        utilizator["imprumuturi_active"] = utilizator.get("imprumuturi_active", 0) + 1
-        utilizator["total_imprumuturi"] = utilizator.get("total_imprumuturi", 0) + 1
+        user["active_loans"] = user.get("active_loans", 0) + 1
+        user["total_loans"] = user.get("total_loans", 0) + 1
 
-        self._salveaza_date()
+        self._save_data()
 
         print("")
-        print("=" * 50)
-        print("      ✓ IMPRUMUT INREGISTRAT!")
-        print("=" * 50)
-        print(f"  Carte:         {carte['titlu']} ({carte['autor']})")
-        print(f"  Utilizator:    {utilizator['nume']} (ID: {id_utilizator})")
-        print(f"  Data imprumut: {imprumut['data_imprumut']}")
-        print(f"  Data returnare: {imprumut['data_retur']} ({zile} zile)")
-        print("=" * 50)
-        print(f"\n⚠️  Reminder: Returneaza cartea pana la {imprumut['data_retur']}")
+        print("▀" * 50)
+        print("      IMPRUMUT INREGISTRAT!")
+        print("▀" * 50)
+        print(f"  Carte:         {book['title']} ({book['author']})")
+        print(f"  Utilizator:    {user['name']} (ID: {user_id})")
+        print(f"  Data imprumut: {loan['loan_date']}")
+        print(f"  Data returnare: {loan['return_date']} ({days} zile)")
+        print("▀" * 50)
+        print(f"\n⚠️  Reminder: Returneaza cartea pana la {loan['return_date']}")
         print("   pentru a evita penalitati!\n")
 
-    def returneaza_carte(self, identificator: str, id_utilizator: str) -> None:
+    def return_book(self, identifier: str, user_id: str) -> None:
         """Returneaza o carte imprumutata"""
         print("\nProcesare returnare...")
 
-        id_utilizator = str(id_utilizator)
+        user_id = str(user_id)
 
-        carte = self._gaseste_carte(identificator)
-        if not carte:
-            print(f"EROARE! Cartea '{identificator}' nu a fost gasita!")
+        # Verificare ambiguitate (duplicate la titlu) - doar cartile imprumutate
+        matches = [b for b in self.data["books"] 
+                   if b.get("title", "").lower() == identifier.lower() and b["status"] == "IMPRUMUTAT"]
+        if len(matches) > 1:
+            print(f"\nExista {len(matches)} carti imprumutate cu titlul '{identifier}'.")
+            print("Care dintre ele doresti sa o returnezi?")
+            for m in matches:
+                print(f"  [ID: {m['id']}] {m['title']} - {m['author']} (ISBN: {m.get('isbn', 'N/A')})")
+            
+            try:
+                valid_ids = [str(m['id']) for m in matches]
+                while True:
+                    choice = input("\nIntrodu ID-ul corect (sau Enter pentru anulare): ").strip()
+                    if not choice:
+                        print("Operatiune anulata.")
+                        return
+                    if choice not in valid_ids:
+                        print(f"EROARE! ID-ul '{choice}' nu e in lista de mai sus.")
+                        print(f"Introdu unul dintre: {', '.join(valid_ids)}")
+                        continue
+                    # Apelam recursiv cu ID-ul ales
+                    self.return_book(choice, user_id)
+                    return
+            except KeyboardInterrupt:
+                print("\nOperatiune anulata.")
+                return
+
+        book = self._find_book(identifier)
+        if not book:
+            print(f"EROARE! Cartea '{identifier}' nu a fost gasita!")
             return
 
-        utilizator = self._gaseste_utilizator(id_utilizator)
-        if not utilizator:
-            print(f"EROARE! Utilizatorul cu ID '{id_utilizator}' nu exista!")
+        user = self._find_user(user_id)
+        if not user:
+            print(f"EROARE! Utilizatorul cu ID '{user_id}' nu exista!")
             return
 
-        # Caut imprumutul activ
-        imprumut_activ = None
-        for imp in self.date["imprumuturi"]:
-            if (imp.get("id_carte") == carte["id"] and
-                str(imp.get("id_utilizator")) == id_utilizator and
-                imp.get("status") == "ACTIV"):
-                imprumut_activ = imp
+        active_loan = None
+        for loan in self.data["loans"]:
+            if (loan.get("book_id") == book["id"] and
+                str(loan.get("user_id")) == user_id and
+                loan.get("status") == "ACTIV"):
+                active_loan = loan
                 break
 
-        if not imprumut_activ:
-            print(f"EROARE! Nu exista un imprumut activ pentru '{carte['titlu']}' de catre utilizatorul {id_utilizator}!")
+        if not active_loan:
+            print(f"EROARE! Nu exista un imprumut activ pentru '{book['title']}' de catre utilizatorul {user_id}!")
             return
 
-        # Calculez intarzierea
-        data_azi = datetime.now()
-        data_limita = datetime.strptime(imprumut_activ["data_retur"], DATE_FORMAT)
-        zile_imprumut = (data_azi - datetime.strptime(imprumut_activ["data_imprumut"], DATE_FORMAT)).days
+        today = datetime.now()
+        due_date = datetime.strptime(active_loan["return_date"], DATE_FORMAT)
+        loan_days = (today - datetime.strptime(active_loan["loan_date"], DATE_FORMAT)).days
 
-        penalitate = 0
-        zile_intarziere = 0
+        penalty = 0
+        overdue_days = 0
 
-        if data_azi.date() > data_limita.date():
-            zile_intarziere = (data_azi.date() - data_limita.date()).days
-            penalitate = zile_intarziere * PENALITATE_PE_ZI
+        if today.date() > due_date.date():
+            overdue_days = (today.date() - due_date.date()).days
+            penalty = overdue_days * PENALTY_PER_DAY
 
-        # Actualizez imprumutul
-        imprumut_activ["data_returnare_efectiva"] = data_azi.strftime(DATE_FORMAT)
-        imprumut_activ["status"] = "RETURNAT"
-        imprumut_activ["penalitate"] = penalitate
+        active_loan["actual_return_date"] = today.strftime(DATE_FORMAT)
+        active_loan["status"] = "RETURNAT"
+        active_loan["penalty"] = penalty
 
-        # Actualizez disponibilitatea cartii 
-        carte["status"] = "DISPONIBIL"
+        book["status"] = "DISPONIBIL"
 
-        # Actualizez statusul imprumuturilor utilizatorului
-        utilizator["imprumuturi_active"] = max(0, utilizator.get("imprumuturi_active", 1) - 1)
-        utilizator["total_penalitati"] = utilizator.get("total_penalitati", 0) + penalitate
+        user["active_loans"] = max(0, user.get("active_loans", 1) - 1)
+        user["total_penalties"] = user.get("total_penalties", 0) + penalty
 
-        self._salveaza_date()
+        self._save_data()
 
         print("")
-        print("=" * 50)
-        print("      ✓ CARTE RETURNATA CU SUCCES!")
-        print("=" * 50)
-        print(f"  Carte:             {carte['titlu']}")
-        print(f"  Utilizator:        {utilizator['nume']}")
-        print(f"  Data imprumut:     {imprumut_activ['data_imprumut']}")
-        print(f"  Data returnare:    {data_azi.strftime(DATE_FORMAT)}")
-        print(f"  Zile imprumut:     {zile_imprumut} zile")
-        print("-" * 50)
+        print("▀" * 50)
+        print("      CARTE RETURNATA CU SUCCES!")
+        print("▀" * 50)
+        print(f"  Carte:             {book['title']}")
+        print(f"  Utilizator:        {user['name']}")
+        print(f"  Data imprumut:     {active_loan['loan_date']}")
+        print(f"  Data returnare:    {today.strftime(DATE_FORMAT)}")
+        print(f"  Zile imprumut:     {loan_days} zile")
 
-        if zile_intarziere > 0:
-            print(f"  ⚠️  Intarziere:    {zile_intarziere} zile")
-            print(f"    Penalitate:    {penalitate} RON")
+        if overdue_days > 0:
+            print(f"  ⚠️  Intarziere:    {overdue_days} zile")
+            print(f"    Penalitate:    {penalty} RON")
         else:
-            print("  ✓ Returnat la timp!")
-            print("  ✓ Fara penalitati!")
+            print("  Returnat la timp!")
+            print("  Fara penalitati!")
 
-        print("=" * 50)
+        print("▀" * 50)
         print("\n📚 Cartea este acum DISPONIBILA pentru imprumut.\n")
 
-   #rapoarte
+    # Rapoarte  
 
-    def genereaza_raport(self, tip_raport: str, top: int = 10) -> None:
+    def generate_report(self, report_type: str, top: int = 10) -> None:
         """Genereaza diverse rapoarte"""
-        if tip_raport == "overdue":
-            self._raport_intarziate()
-        elif tip_raport == "borrowed":
-            self._raport_imprumutate()
-        elif tip_raport == "popular":
-            self._raport_populare(top)
-        elif tip_raport == "users":
-            self._raport_utilizatori_activi(top)
+        if report_type == "overdue":
+            self._report_overdue()
+        elif report_type == "borrowed":
+            self._report_borrowed()
+        elif report_type == "popular":
+            self._report_popular(top)
+        elif report_type == "users":
+            self._report_active_users(top)
         else:
-            print(f"EROARE! Tip raport invalid: {tip_raport}")
+            print(f"EROARE! Tip raport invalid: {report_type}")
             print("Tipuri disponibile: overdue, borrowed, popular, users")
 
-    def _raport_intarziate(self) -> None:
+    def _report_overdue(self) -> None:
         """Raport cu cartile intarziate"""
-        azi = datetime.now().date()
-        intarziate = []
+        today = datetime.now().date()
+        overdue_list = []
 
-        for imp in self.date["imprumuturi"]:
-            if imp.get("status") == "ACTIV":
-                data_limita = datetime.strptime(imp["data_retur"], DATE_FORMAT).date()
-                if azi >= data_limita:
-                    zile = (azi - data_limita).days
-                    imp_copie = imp.copy()
-                    imp_copie["zile_intarziere"] = zile
-                    imp_copie["penalitate_curenta"] = zile * PENALITATE_PE_ZI
-                    intarziate.append(imp_copie)
+        for loan in self.data["loans"]:
+            if loan.get("status") == "ACTIV":
+                due_date = datetime.strptime(loan["return_date"], DATE_FORMAT).date()
+                if today >= due_date:
+                    days = (today - due_date).days
+                    loan_copy = loan.copy()
+                    loan_copy["overdue_days"] = days
+                    loan_copy["current_penalty"] = days * PENALTY_PER_DAY
+                    overdue_list.append(loan_copy)
 
         print("")
-        print("=" * 65)
-        print(f"  RAPORT CARTI INTARZIATE - {azi}")
-        print("=" * 65)
+        print("▀" * 65)
+        print(f"  RAPORT CARTI INTARZIATE - {today}")
+        print("▀" * 65)
 
-        if not intarziate:
+        if not overdue_list:
             print("\n  Nu exista carti intarziate!\n")
-            print("=" * 65)
+            print("▀" * 65)
             print("")
             return
 
-        print(f"\n  {len(intarziate)} carti sunt returnate cu intarziere:\n")
+        print(f"\n  {len(overdue_list)} carti sunt returnate cu intarziere:\n")
 
-        total_penalitati = 0
-        for i, imp in enumerate(intarziate, 1):
-            carte = self._gaseste_carte(str(imp["id_carte"]))
-            autor = carte.get("autor", "N/A") if carte else "N/A"
+        total_penalties = 0
+        for i, loan in enumerate(overdue_list, 1):
+            book = self._find_book(str(loan["book_id"]))
+            author = book.get("author", "N/A") if book else "N/A"
 
-            print(f"  {i}. {imp['titlu_carte']} ({autor})")
-            print(f"     Utilizator: {imp['nume_utilizator']} (ID: {imp['id_utilizator']})")
-            print(f"     Deadline: {imp['data_retur']}")
+            print(f"  {i}. {loan['book_title']} ({author})")
+            print(f"     Utilizator: {loan['user_name']} (ID: {loan['user_id']})")
+            print(f"     Deadline: {loan['return_date']}")
 
-            if imp["zile_intarziere"] == 0:
+            if loan["overdue_days"] == 0:
                 print(f"     Intarziere: 0 zile (scadent ASTAZI!)")
             else:
-                print(f"     Intarziere: {imp['zile_intarziere']} zile")
+                print(f"     Intarziere: {loan['overdue_days']} zile")
 
-            print(f"     Penalitate: {imp['penalitate_curenta']} RON")
-            total_penalitati += imp["penalitate_curenta"]
+            print(f"     Penalitate: {loan['current_penalty']} RON")
+            total_penalties += loan["current_penalty"]
             print("")
 
-        print("-" * 65)
-        print(f"  Total penalitati de colectat: {total_penalitati} RON")
+        print("░" * 65)
+        print(f"  Total penalitati de colectat: {total_penalties} RON")
         print("")
         print("  Actiuni recomandate:")
-        for imp in intarziate:
-            if imp["zile_intarziere"] == 0:
-                print(f"    ✉ Trimite reminder catre {imp['nume_utilizator']} (scadent astazi)")
+        for loan in overdue_list:
+            if loan["overdue_days"] == 0:
+                print(f"    ✉ Trimite reminder catre {loan['user_name']} (scadent astazi)")
             else:
-                print(f"    ✉ Trimite notificare penalitate catre {imp['nume_utilizator']}")
-        print("=" * 65)
+                print(f"    ✉ Trimite notificare penalitate catre {loan['user_name']}")
+        print("▀" * 65)
         print("")
 
-    def _raport_imprumutate(self) -> None:
+    def _report_borrowed(self) -> None:
         """Raport cu cartile imprumutate"""
-        active = [imp for imp in self.date["imprumuturi"] if imp.get("status") == "ACTIV"]
+        active = [loan for loan in self.data["loans"] if loan.get("status") == "ACTIV"]
 
         print("")
-        print("=" * 75)
+        print("▀" * 75)
         print(f"  CARTI IMPRUMUTATE ({len(active)} total)")
-        print("=" * 75)
+        print("▀" * 75)
 
         if not active:
             print("\n  Nu exista carti imprumutate in acest moment.\n")
-            print("=" * 75)
+            print("▀" * 75)
             print("")
             return
 
         print(f"{'ID':<5} {'Titlu':<22} {'Imprumutat de':<18} {'Imprumut':<12} {'Return':<12}")
-        print("-" * 75)
+        print("░" * 75)
 
-        for imp in active:
-            titlu = imp['titlu_carte'][:20] + ".." if len(imp['titlu_carte']) > 22 else imp['titlu_carte']
-            nume = imp['nume_utilizator'][:16] + ".." if len(imp['nume_utilizator']) > 18 else imp['nume_utilizator']
-            print(f"{imp['id_carte']:<5} {titlu:<22} {nume:<18} {imp['data_imprumut']:<12} {imp['data_retur']:<12}")
+        for loan in active:
+            title = loan['book_title'][:20] + ".." if len(loan['book_title']) > 22 else loan['book_title']
+            name = loan['user_name'][:16] + ".." if len(loan['user_name']) > 18 else loan['user_name']
+            print(f"{loan['book_id']:<5} {title:<22} {name:<18} {loan['loan_date']:<12} {loan['return_date']:<12}")
 
-        print("=" * 75)
+        print("▀" * 75)
         print("")
 
-    def _raport_populare(self, top: int = 10) -> None:
+    def _report_popular(self, top: int = 10) -> None:
         """Raport cu cartile populare"""
-        carti_sortate = sorted(
-            self.date["carti"],
-            key=lambda x: x.get("nr_imprumuturi", 0),
+        sorted_books = sorted(
+            self.data["books"],
+            key=lambda x: x.get("loan_count", 0),
             reverse=True
         )[:top]
 
         print("")
-        print("=" * 60)
-        print(f"  TOP {min(top, len(carti_sortate))} CARTI POPULARE")
-        print("=" * 60)
+        print("▀" * 60)
+        print(f"  TOP {min(top, len(sorted_books))} CARTI POPULARE")
+        print("▀" * 60)
 
-        if not carti_sortate:
+        if not sorted_books:
             print("\n  Nu exista carti in biblioteca.\n")
-            print("=" * 60)
+            print("▀" * 60)
             return
 
-        for i, carte in enumerate(carti_sortate, 1):
-            nr_imp = carte.get('nr_imprumuturi', 0)
-            if nr_imp > 0:
-                print(f"  {i}. \"{carte['titlu']}\" - {nr_imp} imprumuturi")
+        for i, book in enumerate(sorted_books, 1):
+            count = book.get('loan_count', 0)
+            if count > 0:
+                print(f"  {i}. \"{book['title']}\" - {count} imprumuturi")
 
-        print("=" * 60)
+        print("▀" * 60)
         print("")
 
-    def _raport_utilizatori_activi(self, top: int = 10) -> None:
+    def _report_active_users(self, top: int = 10) -> None:
         """Raport cu utilizatorii activi"""
-        utilizatori_sortati = sorted(
-            self.date["utilizatori"],
-            key=lambda x: x.get("total_imprumuturi", 0),
+        # Filtram doar utilizatorii activi (status != INACTIV) cu cel putin 1 imprumut
+        active_users = [u for u in self.data["users"] 
+                        if u.get("status", "ACTIV") != "INACTIV" and u.get("total_loans", 0) > 0]
+        sorted_users = sorted(
+            active_users,
+            key=lambda x: x.get("total_loans", 0),
             reverse=True
         )[:top]
 
         print("")
-        print("=" * 60)
-        print(f"  TOP {min(top, len(utilizatori_sortati))} UTILIZATORI ACTIVI")
-        print("=" * 60)
+        print("▀" * 60)
+        print(f"  TOP {len(sorted_users)} UTILIZATORI ACTIVI")
+        print("▀" * 60)
 
-        if not utilizatori_sortati:
-            print("\n  Nu exista utilizatori inregistrati.\n")
-            print("=" * 60)
+        if not sorted_users:
+            print("\n  Nu exista utilizatori activi cu imprumuturi.\n")
+            print("▀" * 60)
             return
 
-        for i, user in enumerate(utilizatori_sortati, 1):
-            nr_imp = user.get('total_imprumuturi', 0)
-            if nr_imp > 0:
-                print(f"  {i}. {user['nume']} - {nr_imp} imprumuturi")
-        print("=" * 60)
+        for i, user in enumerate(sorted_users, 1):
+            count = user.get('total_loans', 0)
+            print(f"  {i}. {user['name']} - {count} imprumuturi")
+        print("▀" * 60)
         print("")
 
-    def afiseaza_statistici(self, top: int = 5) -> None:
+    def show_statistics(self, top: int = 5) -> None:
         """Afiseaza statistici complete despre biblioteca"""
-        carti = self.date["carti"]
-        utilizatori = self.date["utilizatori"]
-        imprumuturi = self.date["imprumuturi"]
+        books = self.data["books"]
+        users = self.data["users"]
+        loans = self.data["loans"]
 
-        total_carti = len(carti)
-        carti_disponibile = len([c for c in carti if c.get("status") == "DISPONIBIL"])
-        carti_imprumutate = total_carti - carti_disponibile
+        total_books = len(books)
+        available_books = len([b for b in books if b.get("status") == "DISPONIBIL"])
+        borrowed_books = total_books - available_books
 
-        total_utilizatori = len(utilizatori)
-        utilizatori_activi = len([u for u in utilizatori if u.get("imprumuturi_active", 0) > 0])
+        total_users = len(users)
+        active_users = len([u for u in users if u.get("active_loans", 0) > 0])
 
-        total_imprumuturi = len(imprumuturi)
-        imprumuturi_active = len([i for i in imprumuturi if i.get("status") == "ACTIV"])
+        total_loans = len(loans)
+        active_loans = len([l for l in loans if l.get("status") == "ACTIV"])
 
-        # Carti intarziate
-        azi = datetime.now().date()
-        intarziate = 0
-        for imp in imprumuturi:
-            if imp.get("status") == "ACTIV":
-                data_limita = datetime.strptime(imp["data_retur"], DATE_FORMAT).date()
-                if azi > data_limita:
-                    intarziate += 1
+        today = datetime.now().date()
+        overdue_count = 0
+        for loan in loans:
+            if loan.get("status") == "ACTIV":
+                due_date = datetime.strptime(loan["return_date"], DATE_FORMAT).date()
+                if today > due_date:
+                    overdue_count += 1
 
-        # Categorii si autori unici
-        categorii = set(c.get("categorie", "N/A") for c in carti)
-        autori = set(c.get("autor", "N/A") for c in carti)
+        categories = set(b.get("category", "N/A") for b in books)
+        authors = set(b.get("author", "N/A") for b in books)
 
-        # Rata returnare la timp
-        returnate = [i for i in imprumuturi if i.get("status") == "RETURNAT"]
-        la_timp = len([i for i in returnate if i.get("penalitate", 0) == 0])
-        rata_la_timp = (la_timp / len(returnate) * 100) if returnate else 100
+        returned = [l for l in loans if l.get("status") == "RETURNAT"]
+        on_time = len([l for l in returned if l.get("penalty", 0) == 0])
+        on_time_rate = (on_time / len(returned) * 100) if returned else 100
 
-        # Total penalitati
-        total_penalitati = sum(i.get("penalitate", 0) for i in returnate)
+        total_penalties = sum(l.get("penalty", 0) for l in returned)
 
-        luna_curenta = datetime.now().strftime("%B %Y")
+        current_month = datetime.now().strftime("%B %Y")
 
         print("")
-        print("=" * 60)
-        print(f"  STATISTICI BIBLIOTECA - {luna_curenta}")
-        print("=" * 60)
+        print("▀" * 60)
+        print(f"  STATISTICI BIBLIOTECA - {current_month}")
+        print("▀" * 60)
         
         print("\n  COLECTIE:")
-        print(f"    Total carti:    {total_carti}")
-        print(f"    Categorii:      {len(categorii)}")
-        print(f"    Autori unici:   {len(autori)}")
+        print(f"    Total carti:    {total_books}")
+        print(f"    Categorii:      {len(categories)}")
+        print(f"    Autori unici:   {len(authors)}")
 
         print("\n  STATUS CARTI:")
-        if total_carti > 0:
-            procent_disp = (carti_disponibile / total_carti) * 100
-            procent_imp = (carti_imprumutate / total_carti) * 100
-            bar_disp = "█" * int(procent_disp / 5) + "░" * (20 - int(procent_disp / 5))
-            bar_imp = "█" * int(procent_imp / 5) + "░" * (20 - int(procent_imp / 5))
-            print(f"    Disponibile: {carti_disponibile} ({procent_disp:.1f}%) {bar_disp}")
-            print(f"    Imprumutate: {carti_imprumutate} ({procent_imp:.1f}%) {bar_imp}")
+        if total_books > 0:
+            available_pct = (available_books / total_books) * 100
+            borrowed_pct = (borrowed_books / total_books) * 100
+            bar_available = "█" * int(available_pct / 5) + "░" * (20 - int(available_pct / 5))
+            bar_borrowed = "█" * int(borrowed_pct / 5) + "░" * (20 - int(borrowed_pct / 5))
+            print(f"    Disponibile: {available_books} ({available_pct:.1f}%) {bar_available}")
+            print(f"    Imprumutate: {borrowed_books} ({borrowed_pct:.1f}%) {bar_borrowed}")
         else:
             print("    Nu exista carti.")
         print("\n  UTILIZATORI:")
-        print(f"    Total inregistrati:     {total_utilizatori}")
-        print(f"    Cu imprumuturi active:  {utilizatori_activi}")
+        print(f"    Total inregistrati:     {total_users}")
+        print(f"    Cu imprumuturi active:  {active_users}")
         print("\n  IMPRUMUTURI:")
-        print(f"    Total (toate timpurile): {total_imprumuturi}")
-        print(f"    Active:                  {imprumuturi_active}")
-        print(f"    Intarziate:              {intarziate}")
-        print(f"    Rata returnare la timp:  {rata_la_timp:.0f}%")
+        print(f"    Total (toate timpurile): {total_loans}")
+        print(f"    Active:                  {active_loans}")
+        print(f"    Intarziate:              {overdue_count}")
+        print(f"    Rata returnare la timp:  {on_time_rate:.0f}%")
 
-        # Top carti populare
-        if carti:
+        if books:
             print(f"\n  TOP {top} CARTI POPULARE:")
-            carti_sortate = sorted(carti, key=lambda x: x.get("nr_imprumuturi", 0), reverse=True)[:top]
-            for i, carte in enumerate(carti_sortate, 1):
-                nr = carte.get('nr_imprumuturi', 0)
-                if nr > 0:
-                    print(f"  {i}. \"{carte['titlu']}\" - {nr} imprumuturi")
+            sorted_books = sorted(books, key=lambda x: x.get("loan_count", 0), reverse=True)[:top]
+            for i, book in enumerate(sorted_books, 1):
+                count = book.get('loan_count', 0)
+                if count > 0:
+                    print(f"  {i}. \"{book['title']}\" - {count} imprumuturi")
 
-        # Top categorii
-        if carti:
+        if books:
             print(f"\n  TOP 3 CATEGORII:")
             cat_count = {}
-            for c in carti:
-                cat = c.get("categorie", "N/A")
+            for b in books:
+                cat = b.get("category", "N/A")
                 cat_count[cat] = cat_count.get(cat, 0) + 1
             sorted_cats = sorted(cat_count.items(), key=lambda x: x[1], reverse=True)[:3]
             for i, (cat, count) in enumerate(sorted_cats, 1):
-                pct = (count / total_carti * 100) if total_carti > 0 else 0
+                pct = (count / total_books * 100) if total_books > 0 else 0
                 print(f"  {i}. {cat} - {count} carti ({pct:.1f}%)")
 
-        # Top utilizatori
-        if utilizatori:
+        if users:
             print(f"\n  TOP 3 UTILIZATORI ACTIVI:")
-            util_sortati = sorted(utilizatori, key=lambda x: x.get("total_imprumuturi", 0), reverse=True)[:3]
-            for i, user in enumerate(util_sortati, 1):
-                nr = user.get('total_imprumuturi', 0)
-                if nr > 0:
-                    print(f"  {i}. {user['nume']} - {nr} imprumuturi")
+            sorted_users = sorted(users, key=lambda x: x.get("total_loans", 0), reverse=True)[:3]
+            for i, user in enumerate(sorted_users, 1):
+                count = user.get('total_loans', 0)
+                if count > 0:
+                    print(f"  {i}. {user['name']} - {count} imprumuturi")
 
         print(f"\n  VENITURI (din penalitati):")
-        print(f"    Total colectat: {total_penalitati} RON")
+        print(f"    Total colectat: {total_penalties} RON")
         print("")
-        print("=" * 60)
+        print("▀" * 60)
         print("")
- #EXPORT IMPORT 
 
-    def exporta_date(self, fisier: str, format_export: str = "csv") -> None:
-        """Exporta datele in format CSV"""
-        if format_export != "csv":
-            print(f"EROARE! Format necunoscut: {format_export}. Foloseste 'csv'.")
-            return
+    # Import/Export
 
-        print("\nExport in desfasurare...")
+    def export_data(self, destination: str) -> None:
+        """Exporta datele in format CSV (folder complet sau fisier unic)"""
+        
+        # Cazul 1: Export intr-un singur fisier
+        if destination.lower().endswith(".csv"):
+            book_fieldnames = ['id', 'title', 'author', 'isbn', 'category', 'year', 'status', 'date_added', 'loan_count']
+            
+            try:
+                # Verificam daca exista folderul parinte, daca e data o cale
+                parent_dir = os.path.dirname(destination)
+                if parent_dir and not os.path.exists(parent_dir):
+                    os.makedirs(parent_dir, exist_ok=True)
 
-        # Determinam directorul de iesire (implicit folderul data)
-        output_dir = os.path.dirname(fisier) or DATA_DIR
-        os.makedirs(output_dir, exist_ok=True)
+                with open(destination, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=book_fieldnames, extrasaction='ignore')
+                    writer.writeheader()
+                    if self.data["books"]:
+                        writer.writerows(self.data["books"])
+                
+                print(f"\nExportat catalogul de carti ({len(self.data['books'])} carti) in '{destination}'")
+                return
+            except Exception as e:
+                print(f"EROARE la exportul in fisier: {e}")
+                return
 
-        # Calculam imprumuturile active 
-        active = [i for i in self.date["imprumuturi"] if i.get("status") == "ACTIV"]
+        # Cazul 2: Export complet intr-un folder
+        folder = destination
+        os.makedirs(folder, exist_ok=True)
 
-        # Export catalog de carti
-        fisier_carti = os.path.join(output_dir, "library_catalog.csv")
-        fieldnames_carti = ['id', 'titlu', 'autor', 'isbn', 'categorie', 'an', 'status', 'data_adaugare', 'nr_imprumuturi']
-        with open(fisier_carti, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames_carti, extrasaction='ignore')
+        print("\nExport in desfasurare (Backup complet)...")
+
+        active = [l for l in self.data["loans"] if l.get("status") == "ACTIV"]
+
+        # Export catalog carti
+        books_file = os.path.join(folder, "library_catalog.csv")
+        book_fieldnames = ['id', 'title', 'author', 'isbn', 'category', 'year', 'status', 'date_added', 'loan_count']
+        with open(books_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=book_fieldnames, extrasaction='ignore')
             writer.writeheader()
-            if self.date["carti"]:
-                writer.writerows(self.date["carti"])
+            if self.data["books"]:
+                writer.writerows(self.data["books"])
 
-        # Export lista de utilizatori
-        fisier_util = os.path.join(output_dir, "users.csv")
-        fieldnames_util = ['id', 'nume', 'email', 'data_inregistrare', 'imprumuturi_active', 'total_imprumuturi', 'status']
-        with open(fisier_util, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames_util, extrasaction='ignore')
+        # Export utilizatori
+        users_file = os.path.join(folder, "users.csv")
+        user_fieldnames = ['id', 'name', 'email', 'registration_date', 'active_loans', 'total_loans', 'status']
+        with open(users_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=user_fieldnames, extrasaction='ignore')
             writer.writeheader()
-            if self.date["utilizatori"]:
-                writer.writerows(self.date["utilizatori"])
+            if self.data["users"]:
+                writer.writerows(self.data["users"])
 
         # Export imprumuturi active
-        fisier_active = os.path.join(output_dir, "active_loans.csv")
-        fieldnames_imp = ['id', 'id_carte', 'titlu_carte', 'id_utilizator', 'nume_utilizator', 'data_imprumut', 'data_retur', 'status']
-        with open(fisier_active, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames_imp, extrasaction='ignore')
+        active_loans_file = os.path.join(folder, "active_loans.csv")
+        loan_fieldnames = ['id', 'book_id', 'book_title', 'user_id', 'user_name', 'loan_date', 'return_date', 'status']
+        with open(active_loans_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=loan_fieldnames, extrasaction='ignore')
             writer.writeheader()
             if active:
                 writer.writerows(active)
 
-        # 4. Export istoric complet utilizatori
-        fisier_history = os.path.join(output_dir, "user_history.csv")
-        with open(fisier_history, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames_imp + ['data_returnare_efectiva', 'penalitate'], extrasaction='ignore')
+        # Export istoric complet
+        history_file = os.path.join(folder, "user_history.csv")
+        with open(history_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=loan_fieldnames + ['actual_return_date', 'penalty'], extrasaction='ignore')
             writer.writeheader()
-            if self.date["imprumuturi"]:
-                writer.writerows(self.date["imprumuturi"])
+            if self.data["loans"]:
+                writer.writerows(self.data["loans"])
 
-        # Mesaje de export
-        print(f" Exportat {len(self.date['carti'])} cărți")
-        print(f" Exportat {len(self.date['utilizatori'])} utilizatori")
-        print(f" Exportat {len(active)} împrumuturi active")
+        print(f"\nExportat {len(self.data['books'])} carti")
+        print(f"Exportat {len(self.data['users'])} utilizatori")
+        print(f"Exportat {len(active)} imprumuturi active")
 
-        print("\nFișiere generate:")
-        print("• library_catalog.csv (catalog complet)")
-        print("• users.csv (lista utilizatori)")
-        print("• active_loans.csv (împrumuturi active)")
-        print("• user_history.csv (istoric utilizatori)")
+        print(f"\nFisiere generate in '{folder}/':")
+        print("  • library_catalog.csv (catalog complet)")
+        print("  • users.csv (lista utilizatori)")
+        print("  • active_loans.csv (imprumuturi active)")
+        print("  • user_history.csv (istoric complet)")
         print("\nExport complet.")
 
-    def importa_date(self, fisier: str) -> None:
+    def import_data(self, filename: str) -> None:
         """Importa carti din fisier CSV"""
-        if not os.path.exists(fisier):
-            print(f"EROARE! Fisierul '{fisier}' nu exista!")
+        if not os.path.exists(filename):
+            print(f"EROARE! Fisierul '{filename}' nu exista!")
             return
 
-        print(f"\nImport din {fisier}...")
+        print(f"\nImport din {filename}...")
 
-        importate = 0
-        ignorate = 0
+        imported = 0
+        ignored = 0
 
         try:
-            with open(fisier, 'r', encoding='utf-8') as f:
+            with open(filename, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
 
-                for rand in reader:
-                    # Verific daca exista deja
-                    isbn = rand.get('isbn', rand.get('ISBN', ''))
+                for row in reader:
+                    isbn = row.get('isbn', row.get('ISBN', ''))
                     if isbn and isbn != 'N/A':
-                        exista = any(c.get('isbn') == isbn for c in self.date["carti"])
-                        if exista:
-                            ignorate += 1
+                        exists = any(b.get('isbn') == isbn for b in self.data["books"])
+                        if exists:
+                            ignored += 1
                             continue
 
-                    # Verificare de baza
-                    titlu = rand.get('titlu', rand.get('title', '')).strip()
-                    autor = rand.get('autor', rand.get('author', '')).strip()
+                    title = row.get('title', row.get('titlu', '')).strip()
+                    author = row.get('author', row.get('autor', '')).strip()
 
-                    if not titlu or not autor:
-                        ignorate += 1
+                    if not title or not author:
+                        ignored += 1
                         continue
 
-                    an_str = rand.get('an', rand.get('year', ''))
-                    an = int(an_str) if an_str.isdigit() else None
+                    year_str = row.get('year', row.get('an', ''))
+                    year = int(year_str) if year_str and str(year_str).isdigit() else None
 
-                    carte = {
-                        "id": self._genereaza_id_carte(),
-                        "titlu": titlu,
-                        "autor": autor,
+                    book = {
+                        "id": self._generate_book_id(),
+                        "title": title,
+                        "author": author,
                         "isbn": isbn if isbn else "N/A",
-                        "categorie": rand.get('categorie', rand.get('category', 'Necategorizat')),
-                        "an": an,
+                        "category": row.get('category', row.get('categorie', 'Necategorizat')),
+                        "year": year,
                         "status": "DISPONIBIL",
-                        "data_adaugare": datetime.now().strftime(DATE_FORMAT),
-                        "nr_imprumuturi": 0
+                        "date_added": datetime.now().strftime(DATE_FORMAT),
+                        "loan_count": 0
                     }
-                    self.date["carti"].append(carte)
-                    importate += 1
+                    self.data["books"].append(book)
+                    imported += 1
 
-            self._salveaza_date()
-            print(f" Importat {importate} carti noi!")
-            if ignorate > 0:
-                print(f" {ignorate} inregistrari ignorate (duplicate sau invalide).")
+            self._save_data()
+            print(f" Importat {imported} carti noi!")
+            if ignored > 0:
+                print(f" {ignored} inregistrari ignorate (duplicate sau invalide).")
             print("")
 
         except Exception as e:
             print(f"EROARE! Eroare la import: {e}")
 
-def creeaza_parser() -> argparse.ArgumentParser:
+
+def create_parser() -> argparse.ArgumentParser:
     """Creeaza parserul pentru linia de comanda"""
+    # Determinam numele comenzii in functie de sistem (Windows vs Linux/Docker)
+    cmd_name = ".\\library_manager" if sys.platform == "win32" else "library_manager"
+
     parser = argparse.ArgumentParser(
-        description="Library Manager - Sistem de management pentru biblioteca ",
+        prog=cmd_name,
+        add_help=False,
+        description="""
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                       LIBRARY MANAGER - CLI
+              Sistem de management pentru biblioteca
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Exemple de utilizare:
+    epilog=r"""
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                         EXEMPLE DE UTILIZARE
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 
-  --- Management Cărți ---
-  %(prog)s add_book "1984" "G. Orwell" --isbn 9780451524935 --category "Fiction"
-  %(prog)s list
-  %(prog)s list --status borrowed
-  %(prog)s search --author "Orwell"
-  %(prog)s search --title "1984"
-  %(prog)s search --isbn "9780451524935"
-  %(prog)s search --category "Fiction"
-  %(prog)s delete_book "1984"
+  CARTI:
+    Adaugare:
+      library_manager add_book "1984" "G. Orwell" --isbn 978-0451 --category Fiction
+    Listare:
+      library_manager list                    (toate cartile)
+      library_manager list --status borrowed  (doar cele imprumutate)
+    Cautare (dupa titlu, autor, isbn sau categorie):
+      library_manager search --author "Orwell"
+      library_manager search --category "SF"
+    Stergere:
+      library_manager delete_book "1984"
+      library_manager delete_book "978-0451" (Dupa ISBN)
 
-  --- Management Utilizatori ---
-  %(prog)s add_user "Ion Popescu" --id 1001 --email "ion@test.com"
-  %(prog)s list --type users
-  %(prog)s delete_user 1001
-  %(prog)s reactivate_user 1001
+  UTILIZATORI:
+    Adaugare:
+      library_manager add_user "Ion Popescu" --id 1001 --email "ion@test.com"
+    Listare:
+      library_manager list --type users
+    Dezactivare/Reactivare:
+      library_manager delete_user 1001
+      library_manager reactivate_user 1001
 
-  --- Împrumuturi ---
-  %(prog)s borrow "1984" --user_id 1001 --days 14
-  %(prog)s return "1984" --user_id 1001
+  IMPRUMUTURI:
+    Imprumut:
+      library_manager borrow "1984" --user_id 1001 --days 14
+    Returnare:
+      library_manager return "1984" --user_id 1001
 
-  --- Rapoarte și Statistici ---
-  %(prog)s stats
-  %(prog)s report --overdue
-  %(prog)s report --borrowed
-  %(prog)s report --popular --top 5
-  %(prog)s report --users --top 3
+  RAPOARTE SI STATISTICI:
+    Statistici generale (top carti, autori, categorii):
+      library_manager stats
+      library_manager stats --top 10
+    Rapoarte specifice:
+      library_manager report --overdue    (intarzieri)
+      library_manager report --borrowed   (carti imprumutate)
+      library_manager report --popular    (cele mai imprumutate)
+      library_manager report --users      (activitate utilizatori)
 
-  --- Import / Export ---
-  %(prog)s export my_export_session
-  %(prog)s import /cale/catre/fisier.csv
-        """
+  EXPORT/IMPORT:
+    Export:
+      library_manager export backup_folder        (exporta tot intr-un folder)
+      library_manager export catalog_carti.csv    (exporta doar catalogul)
+    Import:
+      library_manager import carti_noi.csv        (din folderul curent)
+      library_manager import "C:\\Users\\Eu\\Desktop\\import.csv" (cale completa)
+""".replace("library_manager", cmd_name)
     )
 
-    subparsers = parser.add_subparsers(dest="comanda", help="Comenzi disponibile")
+    parser.add_argument(
+        '-h', '--help',
+        action='help',
+        default=argparse.SUPPRESS,
+        help='Afiseaza mesajul de ajutor'
+    )
 
-    # adaugare carte
+    subparsers = parser.add_subparsers(dest="command", title="Comenzi disponibile", metavar="")
+
     p = subparsers.add_parser("add_book", help="Adauga o carte noua")
     p.add_argument("title", help="Titlul cartii")
     p.add_argument("author", help="Autorul cartii")
@@ -923,18 +1033,15 @@ Exemple de utilizare:
     p.add_argument("--category", help="Categoria cartii")
     p.add_argument("--year", type=int, help="Anul publicarii")
 
-    # adaugare utilizator
     p = subparsers.add_parser("add_user", help="Adauga un utilizator nou")
     p.add_argument("name", help="Numele utilizatorului")
     p.add_argument("--id", required=True, dest="user_id", help="ID-ul utilizatorului")
     p.add_argument("--email", help="Adresa de email")
 
-    # listare
     p = subparsers.add_parser("list", help="Listeaza carti sau utilizatori")
     p.add_argument("--type", choices=["books", "users"], default="books", help="Ce sa listeze")
     p.add_argument("--status", help="Filtreaza dupa status (available/borrowed)")
 
-    # cautare
     p = subparsers.add_parser("search", help="Cauta carti")
     p.add_argument("query", nargs="?", help="Termen de cautare (optional)")
     p.add_argument("--title", help="Cauta dupa titlu")
@@ -942,30 +1049,24 @@ Exemple de utilizare:
     p.add_argument("--isbn", help="Cauta dupa ISBN")
     p.add_argument("--category", help="Cauta dupa categorie")
 
-    # imprumut
     p = subparsers.add_parser("borrow", help="Imprumuta o carte")
     p.add_argument("book", help="Titlul sau ISBN-ul cartii")
     p.add_argument("--user_id", required=True, help="ID-ul utilizatorului")
     p.add_argument("--days", type=int, default=14, help="Numarul de zile (default: 14)")
 
-    # returnare
     p = subparsers.add_parser("return", help="Returneaza o carte")
     p.add_argument("book", help="Titlul sau ISBN-ul cartii")
     p.add_argument("--user_id", required=True, help="ID-ul utilizatorului")
 
-    # sterge carte
     p = subparsers.add_parser("delete_book", help="Sterge o carte")
     p.add_argument("book", help="Titlul sau ISBN-ul cartii")
 
-    # sterge utilizator
     p = subparsers.add_parser("delete_user", help="Dezactiveaza un utilizator")
     p.add_argument("user_id", help="ID-ul utilizatorului")
 
-    # reactiveaza utilizator
     p = subparsers.add_parser("reactivate_user", help="Reactiveaza un utilizator")
     p.add_argument("user_id", help="ID-ul utilizatorului de reactivat")
 
-    # report
     p = subparsers.add_parser("report", help="Genereaza rapoarte")
     p.add_argument("--overdue", action="store_true", help="Raport carti intarziate")
     p.add_argument("--borrowed", action="store_true", help="Raport carti imprumutate")
@@ -973,55 +1074,54 @@ Exemple de utilizare:
     p.add_argument("--users", action="store_true", help="Raport utilizatori activi")
     p.add_argument("--top", type=int, default=10, help="Numarul de rezultate pentru top")
 
-    # statistici
     p = subparsers.add_parser("stats", help="Afiseaza statistici")
     p.add_argument("--top", type=int, default=5, help="Numarul de rezultate pentru top-uri")
 
-    # export
-    p = subparsers.add_parser("export", help="Exporta datele in CSV")
-    p.add_argument("filename", help="Numele fisierului de export")
-    p.add_argument("--format", choices=["csv"], default="csv", help="Formatul exportului")
+    p = subparsers.add_parser("export", help="Exporta datele in fisiere CSV")
+    p.add_argument("folder", help="Folderul unde se vor genera fisierele CSV (ex: backup)")
 
-    # import
     p = subparsers.add_parser("import", help="Importa carti din CSV")
     p.add_argument("filename", help="Fisierul CSV de importat")
 
     return parser
 
+
 def main():
-    parser = creeaza_parser()
+    parser = create_parser()
     args = parser.parse_args()
 
-    if not args.comanda:
+    if not args.command:
         parser.print_help()
         return
 
     manager = LibraryManager()
 
-    # Executie comenzi
-    if args.comanda == "add_book":
-        manager.adauga_carte(args.title, args.author, args.isbn, args.category, args.year)
+    if args.command == "add_book":
+        manager.add_book(args.title, args.author, args.isbn, args.category, args.year)
 
-    elif args.comanda == "add_user":
-        manager.adauga_utilizator(args.name, args.user_id, args.email)
+    elif args.command == "add_user":
+        manager.add_user(args.name, args.user_id, args.email)
 
-    elif args.comanda == "list":
+    elif args.command == "list":
         if args.type == "users":
-            manager.listeaza_utilizatori()
+            manager.list_users()
         else:
-            manager.listeaza_carti(args.status)
+            if args.status and args.status.lower() == "borrowed":
+                manager.generate_report("borrowed")
+            else:
+                manager.list_books(args.status)
 
-    elif args.comanda == "search":
+    elif args.command == "search":
         if args.author:
-            manager.cauta_carti(args.author, "author")
+            manager.search_books(args.author, "author")
         elif args.title:
-            manager.cauta_carti(args.title, "title")
+            manager.search_books(args.title, "title")
         elif args.isbn:
-            manager.cauta_carti(args.isbn, "isbn")
+            manager.search_books(args.isbn, "isbn")
         elif args.category:
-            manager.cauta_carti(args.category, "category")
+            manager.search_books(args.category, "category")
         elif args.query:
-            manager.cauta_carti(args.query, "title")
+            manager.search_books(args.query, "title")
         else:
             print("\n EROARE! Specifica un criteriu de cautare!")
             print("Exemple:")
@@ -1030,43 +1130,42 @@ def main():
             print('  search --isbn "9780451524935"')
             print('  search --category "Fiction"')
 
-    elif args.comanda == "borrow":
-        manager.imprumuta_carte(args.book, args.user_id, args.days)
+    elif args.command == "borrow":
+        manager.borrow_book(args.book, args.user_id, args.days)
 
-    elif args.comanda == "return":
-        manager.returneaza_carte(args.book, args.user_id)
+    elif args.command == "return":
+        manager.return_book(args.book, args.user_id)
 
-    elif args.comanda == "delete_book":
-        manager.sterge_carte(args.book)
+    elif args.command == "delete_book":
+        manager.delete_book(args.book)
 
-    elif args.comanda == "delete_user":
-        manager.dezactiveaza_utilizator(args.user_id)
+    elif args.command == "delete_user":
+        manager.deactivate_user(args.user_id)
 
-    elif args.comanda == "reactivate_user":
-        manager.reactiveaza_utilizator(args.user_id)
+    elif args.command == "reactivate_user":
+        manager.reactivate_user(args.user_id)
 
-    elif args.comanda == "report":
+    elif args.command == "report":
         if args.overdue:
-            tip_raport = "overdue"
+            report_type = "overdue"
         elif args.borrowed:
-            tip_raport = "borrowed"
+            report_type = "borrowed"
         elif args.popular:
-            tip_raport = "popular"
+            report_type = "popular"
         elif args.users:
-            tip_raport = "users"
+            report_type = "users"
         else:
-            tip_raport = "overdue"
-        manager.genereaza_raport(tip_raport, args.top)
+            report_type = "overdue"
+        manager.generate_report(report_type, args.top)
 
-    elif args.comanda == "stats":
-        manager.afiseaza_statistici(args.top)
+    elif args.command == "stats":
+        manager.show_statistics(args.top)
 
-    elif args.comanda == "export":
-        manager.exporta_date(args.filename, args.format)
+    elif args.command == "export":
+        manager.export_data(args.folder)
 
-    elif args.comanda == "import":
-        manager.importa_date(args.filename)
-
+    elif args.command == "import":
+        manager.import_data(args.filename)
 
 if __name__ == "__main__":
     main()

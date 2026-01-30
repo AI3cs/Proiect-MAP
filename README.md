@@ -108,7 +108,7 @@ proiect/
 **Soluție:** Am implementat metodele `_load_data` și `_save_data` care sunt apelate automat la inițializare și după fiecare modificare, asigurând persistența datelor în `library_data.json`.
 
 ## Testare
-# Cum să rulati testele
+### Cum să rulați testele
 Proiectul include o suită de teste folosind modulul standard `unittest`. Pentru a rula toate testele:
 ```bash
 python -m unittest discover tests/ -v
@@ -117,66 +117,46 @@ Am testat scenarii pozitive (adăugare corectă, împrumut reușit) și scenarii
 
 ## Docker
 
-### Descărcare imagine (de pe DockerHub)
+### Opțiunea A: Folosește Imaginea de pe DockerHub (Recomandat)
+Fără să clonezi proiectul, poți rula direct:
 ```bash
 docker pull alx17608/library-manager:latest
+docker run alx17608/library-manager:latest stats
 ```
 
-### Rulare container (imagine descărcată)
-```bash
-docker run alx17608/library-manager stats
+**Mod Interactiv (cu persistență):**
+```powershell
+docker run -it -v "${PWD}/data:/app/data" --entrypoint /bin/sh alx17608/library-manager:latest
 ```
+Apoi în container: `library_manager add_book "Carte" "Autor"` → `exit`
 
-### Build local
+---
+
+### Opțiunea B: Build Local
+După clonarea repo-ului:
 ```bash
 docker build -t library-manager .
 docker run library-manager stats
 ```
 
-### 1. Mod Interactiv (Sesiune Shell)
-Ideal pentru a rula mai multe comenzi consecutiv, rămânând în container.
-Pentru a lucra interactiv și a salva datele:
+**Mod Interactiv (cu persistență):**
 ```bash
 docker run -it -v "${PWD}/data:/app/data" --entrypoint /bin/sh library-manager
 ```
 
-Odată intrat în container (shell), rulează comenzile:
-```bash
-library_manager add_book "Hacker" "John Doe"
-library_manager list
-```
-Astfel, chiar dacă ieși din container (`exit`), cărțile adăugate rămân în folderul `data/` de pe calculatorul tău.
+---
 
+### Comenzi Utile Docker (ambele variante)
+> **Notă:** Înlocuiește `library-manager` cu `alx17608/library-manager:latest` dacă folosești imaginea descărcată.
 
-### 2. Mod Rapid (Comenzi Unice)
-Ideal pentru a rula o singură comandă rapid, din terminalul tău.
-Dacă vrei ca fișierul `library_data.json` să fie salvat **chiar în folderul proiectului tău** (în `data/`), folosește comanda:
+| Acțiune | Comandă |
+|---------|---------|
+| Adăugare carte | `docker run -v "${PWD}/data:/app/data" library-manager add_book "1984" "Orwell"` |
+| Listare cărți | `docker run -v "${PWD}/data:/app/data" library-manager list` |
+| Export backup | `docker run -v "${PWD}/data:/app/data" library-manager export data/backup` |
+| Import CSV | `docker run -v "${PWD}/data:/app/data" library-manager import data/carti.csv` |
 
-1. **Adăugare carte**:
-```powershell
-docker run -v "${PWD}/data:/app/data" library-manager add_book "1984" "Orwell"
-```
-
-2. **Listare cărți**:
-```powershell
-docker run -v "${PWD}/data:/app/data" library-manager list
-```
-
-3. **Export Backup (în folderul windows)**:
-Ca să găsești fișierele exportate pe Windows, trebuie să exporți în subfolderul `data/`:
-```powershell
-docker run -v "${PWD}/data:/app/data" library-manager export data/backup_meu
-```
-Vei găsi folderul `backup_meu` în `D:\proiect map... \data\backup_meu`.
-
-4. **Import (din fișier CSV)**:
-Dacă ai un fișier `carti_noi.csv` în folderul `data/`, îl poți importa așa:
-```powershell
-docker run -v "${PWD}/data:/app/data" library-manager import data/carti_noi.csv
-```
-> **Notă:** Docker vede doar fișierele din folderul `data`. Dacă ai fișierul pe Desktop, **copiază-l întâi în folderul `data`** al proiectului!
-
-Astfel, poți deschide și vedea fișierul `data/library_data.json` direct din Windows!
+> **Notă:** Docker vede doar fișierele din folderul `data`. Dacă ai fișierul pe Desktop, copiază-l întâi în `data/`!
 
 ## Resurse folosite
 - [Documentație Python argparse](https://docs.python.org/3/library/argparse.html)

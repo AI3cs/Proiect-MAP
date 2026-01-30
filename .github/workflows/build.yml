@@ -46,9 +46,8 @@ jobs:
       with:
         context: .
         push: true
-        #Va fi creata imaginea alx17608/library-manager:latest
+        #Va fi creata imaginea
         tags: ${{ secrets.DOCKER_USERNAME }}/library-manager:latest
 
-    # Verificare finală în consolă
     - name: Test Docker container
       run: docker run --rm ${{ secrets.DOCKER_USERNAME }}/library-manager:latest --help

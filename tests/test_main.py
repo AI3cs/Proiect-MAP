@@ -1,267 +1,251 @@
 #!/usr/bin/env python3
 """
 Teste pentru Library Manager
-Proiect Sincretic - Tema 22
 """
-
-import json
 import os
 import sys
 import tempfile
 import unittest
 
-# adaug calea catre src
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from main import LibraryManager
 
 
-class TestCarti(unittest.TestCase):
-    """teste pentru functiile cu carti"""
+class TestBooks(unittest.TestCase):
     
     def setUp(self):
-        # creez un fisier temporar pentru teste
-        self.fisier_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        self.fisier_temp.close()
-        self.manager = LibraryManager(self.fisier_temp.name)
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
     
     def tearDown(self):
-        # sterg fisierul dupa test
-        if os.path.exists(self.fisier_temp.name):
-            os.unlink(self.fisier_temp.name)
+        if os.path.exists(self.temp_file.name):
+            try:
+                os.unlink(self.temp_file.name)
+            except PermissionError:
+                pass
     
-    def test_adauga_carte_simplu(self):
-        """test adaugare carte cu date minime"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        
-        # verific ca s-a adaugat
-        self.assertEqual(len(self.manager.date["carti"]), 1)
-        self.assertEqual(self.manager.date["carti"][0]["titlu"], "Carte Test")
-        self.assertEqual(self.manager.date["carti"][0]["autor"], "Autor Test")
-        self.assertEqual(self.manager.date["carti"][0]["status"], "DISPONIBIL")
+    def test_add_book_simple(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.assertEqual(len(self.manager.data["books"]), 1)
+        self.assertEqual(self.manager.data["books"][0]["title"], "Carte Test")
+        self.assertEqual(self.manager.data["books"][0]["author"], "Autor Test")
+        self.assertEqual(self.manager.data["books"][0]["status"], "DISPONIBIL")
     
-    def test_adauga_carte_complet(self):
-        """test adaugare carte cu toate datele"""
-        self.manager.adauga_carte("1984", "George Orwell", "9780451524935", "Fiction", 1949)
-        
-        carte = self.manager.date["carti"][0]
-        self.assertEqual(carte["isbn"], "9780451524935")
-        self.assertEqual(carte["categorie"], "Fiction")
-        self.assertEqual(carte["an"], 1949)
+    def test_add_book_complete(self):
+        self.manager.add_book("1984", "George Orwell", "9780451524935", "Fiction", 1949)
+        book = self.manager.data["books"][0]
+        self.assertEqual(book["isbn"], "9780451524935")
+        self.assertEqual(book["category"], "Fiction")
+        self.assertEqual(book["year"], 1949)
     
-    def test_isbn_duplicat(self):
-        """test ca nu se poate adauga carte cu isbn duplicat"""
-        self.manager.adauga_carte("Carte 1", "Autor 1", "123456")
-        self.manager.adauga_carte("Carte 2", "Autor 2", "123456")
-        
-        # trebuie sa fie doar o carte
-        self.assertEqual(len(self.manager.date["carti"]), 1)
+    def test_duplicate_isbn(self):
+        self.manager.add_book("Carte 1", "Autor 1", "123456")
+        self.manager.add_book("Carte 2", "Autor 2", "123456")
+        self.assertEqual(len(self.manager.data["books"]), 1)
     
-    def test_id_uri_unice(self):
-        """test ca id-urile sunt unice"""
-        self.manager.adauga_carte("Carte 1", "Autor 1")
-        self.manager.adauga_carte("Carte 2", "Autor 2")
-        
-        self.assertEqual(self.manager.date["carti"][0]["id"], 1)
-        self.assertEqual(self.manager.date["carti"][1]["id"], 2)
+    def test_unique_ids(self):
+        self.manager.add_book("Carte 1", "Autor 1")
+        self.manager.add_book("Carte 2", "Autor 2")
+        self.assertEqual(self.manager.data["books"][0]["id"], 1)
+        self.assertEqual(self.manager.data["books"][1]["id"], 2)
     
-    def test_gaseste_carte_titlu(self):
-        """test gasire carte dupa titlu"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        
-        carte = self.manager._gaseste_carte("Carte Test")
-        self.assertIsNotNone(carte)
-        self.assertEqual(carte["titlu"], "Carte Test")
+    def test_find_book_by_title(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        book = self.manager._find_book("Carte Test")
+        self.assertIsNotNone(book)
+        self.assertEqual(book["title"], "Carte Test")
     
-    def test_gaseste_carte_isbn(self):
-        """test gasire carte dupa isbn"""
-        self.manager.adauga_carte("Carte Test", "Autor Test", "123456")
-        
-        carte = self.manager._gaseste_carte("123456")
-        self.assertIsNotNone(carte)
+    def test_find_book_by_isbn(self):
+        self.manager.add_book("Carte Test", "Autor Test", "123456")
+        book = self.manager._find_book("123456")
+        self.assertIsNotNone(book)
     
-    def test_carte_inexistenta(self):
-        """test carte care nu exista"""
-        carte = self.manager._gaseste_carte("Nu exista")
-        self.assertIsNone(carte)
+    def test_book_not_found(self):
+        book = self.manager._find_book("Nu exista")
+        self.assertIsNone(book)
 
 
-class TestUtilizatori(unittest.TestCase):
-    """teste pentru utilizatori"""
+class TestUsers(unittest.TestCase):
     
     def setUp(self):
-        self.fisier_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        self.fisier_temp.close()
-        self.manager = LibraryManager(self.fisier_temp.name)
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
     
     def tearDown(self):
-        if os.path.exists(self.fisier_temp.name):
-            os.unlink(self.fisier_temp.name)
+        if os.path.exists(self.temp_file.name):
+            try:
+                os.unlink(self.temp_file.name)
+            except PermissionError:
+                pass
     
-    def test_adauga_utilizator(self):
-        """test adaugare utilizator"""
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        
-        self.assertEqual(len(self.manager.date["utilizatori"]), 1)
-        self.assertEqual(self.manager.date["utilizatori"][0]["nume"], "Ion Popescu")
-        self.assertEqual(self.manager.date["utilizatori"][0]["id"], "1001")
+    def test_add_user(self):
+        self.manager.add_user("Ion Popescu", "1001")
+        self.assertEqual(len(self.manager.data["users"]), 1)
+        self.assertEqual(self.manager.data["users"][0]["name"], "Ion Popescu")
+        self.assertEqual(self.manager.data["users"][0]["id"], "1001")
     
-    def test_adauga_utilizator_email(self):
-        """test utilizator cu email"""
-        self.manager.adauga_utilizator("Ion Popescu", "1001", "ion@test.com")
-        self.assertEqual(self.manager.date["utilizatori"][0]["email"], "ion@test.com")
+    def test_add_user_with_email(self):
+        self.manager.add_user("Ion Popescu", "1001", "ion@test.com")
+        self.assertEqual(self.manager.data["users"][0]["email"], "ion@test.com")
     
-    def test_id_duplicat(self):
-        """test ca nu se poate adauga utilizator cu id duplicat"""
-        self.manager.adauga_utilizator("User 1", "1001")
-        self.manager.adauga_utilizator("User 2", "1001")
-        
-        self.assertEqual(len(self.manager.date["utilizatori"]), 1)
+    def test_duplicate_id(self):
+        self.manager.add_user("User 1", "1001")
+        self.manager.add_user("User 2", "1001")
+        self.assertEqual(len(self.manager.data["users"]), 1)
     
-    def test_gaseste_utilizator(self):
-        """test gasire utilizator"""
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        
-        user = self.manager._gaseste_utilizator("1001")
+    def test_find_user(self):
+        self.manager.add_user("Ion Popescu", "1001")
+        user = self.manager._find_user("1001")
         self.assertIsNotNone(user)
-        self.assertEqual(user["nume"], "Ion Popescu")
+        self.assertEqual(user["name"], "Ion Popescu")
 
 
-class TestImprumuturi(unittest.TestCase):
-    """teste pentru imprumuturi"""
+class TestLoans(unittest.TestCase):
     
     def setUp(self):
-        self.fisier_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        self.fisier_temp.close()
-        self.manager = LibraryManager(self.fisier_temp.name)
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
     
     def tearDown(self):
-        if os.path.exists(self.fisier_temp.name):
-            os.unlink(self.fisier_temp.name)
+        if os.path.exists(self.temp_file.name):
+            try:
+                os.unlink(self.temp_file.name)
+            except PermissionError:
+                pass
     
-    def test_imprumut_succes(self):
-        """test imprumut cu succes"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        self.manager.imprumuta_carte("Carte Test", "1001", 14)
-        
-        # verific ca s-a creat imprumutul
-        self.assertEqual(len(self.manager.date["imprumuturi"]), 1)
-        self.assertEqual(self.manager.date["imprumuturi"][0]["status"], "ACTIV")
-        
-        # verific ca cartea e imprumutata
-        carte = self.manager._gaseste_carte("Carte Test")
-        self.assertEqual(carte["status"], "IMPRUMUTAT")
-        
-        # verific utilizatorul
-        user = self.manager._gaseste_utilizator("1001")
-        self.assertEqual(user["imprumuturi_active"], 1)
+    def test_borrow_success(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.manager.add_user("Ion Popescu", "1001")
+        self.manager.borrow_book("Carte Test", "1001", 14)
+        self.assertEqual(len(self.manager.data["loans"]), 1)
+        self.assertEqual(self.manager.data["loans"][0]["status"], "ACTIV")
+        book = self.manager._find_book("Carte Test")
+        self.assertEqual(book["status"], "IMPRUMUTAT")
+        user = self.manager._find_user("1001")
+        self.assertEqual(user["active_loans"], 1)
     
-    def test_carte_indisponibila(self):
-        """test imprumut carte indisponibila"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        self.manager.adauga_utilizator("User 1", "1001")
-        self.manager.adauga_utilizator("User 2", "1002")
-        
-        self.manager.imprumuta_carte("Carte Test", "1001")
-        self.manager.imprumuta_carte("Carte Test", "1002")
-        
-        # doar un imprumut
-        self.assertEqual(len(self.manager.date["imprumuturi"]), 1)
+    def test_book_unavailable(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.manager.add_user("User 1", "1001")
+        self.manager.add_user("User 2", "1002")
+        self.manager.borrow_book("Carte Test", "1001")
+        self.manager.borrow_book("Carte Test", "1002")
+        self.assertEqual(len(self.manager.data["loans"]), 1)
     
-    def test_returnare_succes(self):
-        """test returnare carte"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        self.manager.imprumuta_carte("Carte Test", "1001")
-        self.manager.returneaza_carte("Carte Test", "1001")
-        
-        # verific ca e returnata
-        self.assertEqual(self.manager.date["imprumuturi"][0]["status"], "RETURNAT")
-        
-        # verific ca cartea e disponibila
-        carte = self.manager._gaseste_carte("Carte Test")
-        self.assertEqual(carte["status"], "DISPONIBIL")
-        
-        # verific utilizatorul
-        user = self.manager._gaseste_utilizator("1001")
-        self.assertEqual(user["imprumuturi_active"], 0)
+    def test_return_success(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.manager.add_user("Ion Popescu", "1001")
+        self.manager.borrow_book("Carte Test", "1001")
+        self.manager.return_book("Carte Test", "1001")
+        self.assertEqual(self.manager.data["loans"][0]["status"], "RETURNAT")
+        book = self.manager._find_book("Carte Test")
+        self.assertEqual(book["status"], "DISPONIBIL")
+        user = self.manager._find_user("1001")
+        self.assertEqual(user["active_loans"], 0)
     
-    def test_numarare_imprumuturi(self):
-        """test ca se numara corect imprumuturile"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        
-        # 2 imprumuturi
-        self.manager.imprumuta_carte("Carte Test", "1001")
-        self.manager.returneaza_carte("Carte Test", "1001")
-        self.manager.imprumuta_carte("Carte Test", "1001")
-        self.manager.returneaza_carte("Carte Test", "1001")
-        
-        carte = self.manager._gaseste_carte("Carte Test")
-        self.assertEqual(carte["nr_imprumuturi"], 2)
-        
-        user = self.manager._gaseste_utilizator("1001")
-        self.assertEqual(user["total_imprumuturi"], 2)
+    def test_loan_count(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.manager.add_user("Ion Popescu", "1001")
+        self.manager.borrow_book("Carte Test", "1001")
+        self.manager.return_book("Carte Test", "1001")
+        self.manager.borrow_book("Carte Test", "1001")
+        self.manager.return_book("Carte Test", "1001")
+        book = self.manager._find_book("Carte Test")
+        self.assertEqual(book["loan_count"], 2)
+        user = self.manager._find_user("1001")
+        self.assertEqual(user["total_loans"], 2)
 
 
-class TestPersistenta(unittest.TestCase):
-    """test salvare date"""
+class TestPersistence(unittest.TestCase):
     
     def setUp(self):
-        self.fisier_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        self.fisier_temp.close()
-        self.manager = LibraryManager(self.fisier_temp.name)
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
     
     def tearDown(self):
-        if os.path.exists(self.fisier_temp.name):
-            os.unlink(self.fisier_temp.name)
+        if os.path.exists(self.temp_file.name):
+            try:
+                os.unlink(self.temp_file.name)
+            except PermissionError:
+                pass
     
-    def test_date_persistente(self):
-        """test ca datele se salveaza"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        
-        # creez un nou manager cu acelasi fisier
-        manager2 = LibraryManager(self.fisier_temp.name)
-        
-        self.assertEqual(len(manager2.date["carti"]), 1)
-        self.assertEqual(len(manager2.date["utilizatori"]), 1)
+    def test_persistent_data(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        self.manager.add_user("Ion Popescu", "1001")
+        manager2 = LibraryManager(self.temp_file.name)
+        self.assertEqual(len(manager2.data["books"]), 1)
+        self.assertEqual(len(manager2.data["users"]), 1)
 
 
-class TestValidari(unittest.TestCase):
-    """teste pentru validari"""
+class TestValidations(unittest.TestCase):
     
     def setUp(self):
-        self.fisier_temp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        self.fisier_temp.close()
-        self.manager = LibraryManager(self.fisier_temp.name)
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
     
     def tearDown(self):
-        if os.path.exists(self.fisier_temp.name):
-            os.unlink(self.fisier_temp.name)
+        if os.path.exists(self.temp_file.name):
+            os.unlink(self.temp_file.name)
     
-    def test_imprumut_carte_inexistenta(self):
-        """test imprumut carte care nu exista"""
-        self.manager.adauga_utilizator("Ion Popescu", "1001")
-        
-        nr_initial = len(self.manager.date["imprumuturi"])
-        self.manager.imprumuta_carte("Nu Exista", "1001")
-        
-        # nu trebuie sa se creeze imprumut
-        self.assertEqual(len(self.manager.date["imprumuturi"]), nr_initial)
+    def test_borrow_nonexistent_book(self):
+        self.manager.add_user("Ion Popescu", "1001")
+        initial_count = len(self.manager.data["loans"])
+        self.manager.borrow_book("Nu Exista", "1001")
+        self.assertEqual(len(self.manager.data["loans"]), initial_count)
     
-    def test_imprumut_utilizator_inexistent(self):
-        """test imprumut de utilizator inexistent"""
-        self.manager.adauga_carte("Carte Test", "Autor Test")
-        
-        nr_initial = len(self.manager.date["imprumuturi"])
-        self.manager.imprumuta_carte("Carte Test", "9999")
-        
-        # nu trebuie sa se creeze imprumut
-        self.assertEqual(len(self.manager.date["imprumuturi"]), nr_initial)
+    def test_borrow_nonexistent_user(self):
+        self.manager.add_book("Carte Test", "Autor Test")
+        initial_count = len(self.manager.data["loans"])
+        self.manager.borrow_book("Carte Test", "9999")
+        self.assertEqual(len(self.manager.data["loans"]), initial_count)
 
 
-# rulare teste
+class TestOperations(unittest.TestCase):
+
+    def setUp(self):
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        self.temp_file.close()
+        self.manager = LibraryManager(self.temp_file.name)
+    
+    def tearDown(self):
+        if os.path.exists(self.temp_file.name):
+            os.unlink(self.temp_file.name)
+
+    def test_delete_book_by_title(self):
+        self.manager.add_book("De Sters", "Autor X")
+        self.assertEqual(len(self.manager.data["books"]), 1)
+        self.manager.delete_book("De Sters")
+        self.assertEqual(len(self.manager.data["books"]), 0)
+
+    def test_delete_book_by_isbn(self):
+        self.manager.add_book("Dublura", "Autor Y", isbn="111")
+        self.manager.add_book("Dublura", "Autor Y", isbn="222")
+        self.assertEqual(len(self.manager.data["books"]), 2)
+        
+        # Stergem doar a doua carte folosind ISBN-ul
+        self.manager.delete_book("222")
+        self.assertEqual(len(self.manager.data["books"]), 1)
+        self.assertEqual(self.manager.data["books"][0]["isbn"], "111")
+
+    def test_delete_active_user(self):
+        self.manager.add_user("User Act", "5000")
+        self.manager.deactivate_user("5000")
+        user = self.manager._find_user("5000")
+        self.assertEqual(user["status"], "INACTIV")
+
+    def test_reactivate_user(self):
+        self.manager.add_user("User React", "6000")
+        self.manager.deactivate_user("6000")
+        self.manager.reactivate_user("6000")
+        user = self.manager._find_user("6000")
+        self.assertEqual(user["status"], "ACTIV")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
