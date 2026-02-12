@@ -13,6 +13,8 @@ Un sistem complet de management pentru o bibliotecă mică, scris în Python.
 
 Library Manager este o aplicație CLI (Command Line Interface) destinată gestionării eficiente a unei biblioteci de dimensiuni mici. Aplicația rezolvă problema organizării cărților, permițând bibliotecarului să țină o evidență clară a stocului, a utilizatorilor și a împrumuturilor. Prin automatizarea calculelor de penalități și a verificării disponibilității, sistemul elimină erorile umane și simplifică procesul de administrare.
 
+> **📚 Documentație:** Pentru un ghid detaliat al tuturor funcționalităților și comenzilor, consultați [Manualul de Utilizare](./docs/manual_utilizare.md).
+
 ## Tehnologii folosite
 - **Limbaj:** Python 3.12
 - **Biblioteci:**
@@ -24,50 +26,104 @@ Library Manager este o aplicație CLI (Command Line Interface) destinată gestio
 - **Tools:** Git, Docker, GitHub Actions
 
 ## Cerințe sistem
-- Python 3.12 sau mai nou
-- Sistem de operare: Windows, Linux sau macOS
-- Docker (opțional, pentru rularea în container)
+- **Python 3.12+** 
+- **Git** (oentru clonare)
+- **Docker** (pentru rularea în container)
+- **Sistem de operare:** Windows, Linux sau macOS
 
-## Instalare
+## Instalare (Clonare)
 
 ```bash
-# Clone repository
 git clone https://github.com/AI3cs/Proiect-MAP.git
 cd Proiect-MAP
 ```
 
 ## Exemple de utilizare
 
+> **Notă:** Comenzile diferă în funcție de sistemul de operare:
+> - **Windows:** folosiți `.\library_manager`
+> - **Linux/macOS:** folosiți `python3 src/main.py`
+
+### Vizualizarea comenzilor disponibile (Help)
+Pentru a vedea toate comenzile și opțiunile disponibile:
+
+**Windows:**
+```powershell
+.\library_manager --help
+```
+
+**Linux/macOS:**
+```bash
+python3 src/main.py --help
+```
+
 ### 1. Adăugarea unei cărți noi
 
 Adaugă o carte în inventar specificând detaliile necesare.
+
+**Windows:**
 ```bash
 .\library_manager add_book "1984" "G. Orwell" --isbn 9780451524935 --category "Fiction"
 ```
 
+**Linux/macOS:**
+```bash
+python3 src/main.py add_book "1984" "G. Orwell" --isbn 9780451524935 --category "Fiction"
+```
+
 ### 2. Împrumutarea unei cărți
 Înregistrează un împrumut pentru un utilizator existent.
+
+**Windows:**
 ```bash
 .\library_manager borrow "1984" --user_id 1001 --days 14
 ```
 
+**Linux/macOS:**
+```bash
+python3 src/main.py borrow "1984" --user_id 1001 --days 14
+```
+
 ### 3. Generarea unui raport de întârzieri
 Verifică ce cărți nu au fost returnate la timp și calculează penalitățile.
+
+**Windows:**
 ```bash
 .\library_manager report --overdue
 ```
 
+**Linux/macOS:**
+```bash
+python3 src/main.py report --overdue
+```
+
 ### 4. Căutare avansată
 Caută cărți după un anumit autor.
+
+**Windows:**
 ```bash
 .\library_manager search "Orwell" --type author
 ```
 
+**Linux/macOS:**
+```bash
+python3 src/main.py search "Orwell" --type author
+```
+
 ### 5. Export de siguranță (Backup)
 Exportă toate datele din sistem într-un folder de backup pentru siguranță.
+
+**Windows:**
 ```bash
-.\library_manager export backup_folder
+.\library_manager export data/backup
 ```
+
+**Linux/macOS:**
+```bash
+python3 src/main.py export data/backup
+```
+
+> **💡 Notă:** Folosiți calea `data/backup` pentru a vă asigura că datele sunt salvate în folderul proiectului și nu se pierd.
 
 ## Funcționalități implementate
 - Gestiune Cărți (Adăugare, Ștergere, Căutare, Listare)
@@ -89,6 +145,7 @@ proiect/
 ├── tests/
 │   ├── __init__.py         - Marker pentru pachetul de teste
 │   └── test_main.py        - Teste unitare
+├── .gitignore              - Fișiere excluse din version control
 ├── Dockerfile              - Configurare pentru containerizare Docker
 ├── library_manager.bat     - Script utilitar pentru rulare rapidă pe Windows
 └── README.md               - Documentația principală a proiectului
@@ -110,19 +167,31 @@ proiect/
 ## Testare
 ### Cum să rulați testele
 Proiectul include o suită de teste folosind modulul standard `unittest`. Pentru a rula toate testele:
+
+**Windows:**
 ```bash
 python -m unittest discover tests/ -v
 ```
+
+**Linux/macOS:**
+```bash
+python3 -m unittest discover tests/ -v
+```
+
 Am testat scenarii pozitive (adăugare corectă, împrumut reușit) și scenarii negative (împrumut carte inexistentă, validare ISBN duplicat), asigurând robustețea aplicației.
 
 ## Docker
 
+> ⚠️ **IMPORTANT - Persistența datelor:** Comenzile care modifică date (add_book, borrow, export, etc.) necesită `-v "${PWD}/data:/app/data"` pentru a salva modificările pe calculatorul dumneavoastră. **Fără `-v`, datele există doar în container și dispar când acesta se oprește!** Comenzile `stats` și `list` pot fi rulate fără `-v` pentru testare rapidă.
+
 ### Opțiunea A: Folosește Imaginea de pe DockerHub (Recomandat)
-Fără să clonezi proiectul, poți rula direct:
+Fără să clonați proiectul, puteți rula direct:
 ```bash
 docker pull alx17608/library-manager:latest
 docker run alx17608/library-manager:latest stats
 ```
+
+> **Linux:** Dacă primiți eroarea `permission denied`, adăugați `sudo` înaintea comenzilor (vedeți secțiunea Permisiuni Docker mai jos).
 
 **Mod Interactiv (cu persistență):**
 ```powershell
@@ -139,15 +208,42 @@ docker build -t library-manager .
 docker run library-manager stats
 ```
 
+> **Linux:** Dacă primiți eroarea `permission denied`, adăugați `sudo` înaintea comenzilor sau configurați grupul docker (vedeți secțiunea Permisiuni Docker mai jos).
+
 **Mod Interactiv (cu persistență):**
 ```bash
 docker run -it -v "${PWD}/data:/app/data" --entrypoint /bin/sh library-manager
 ```
 
+În modul interactiv, rulați comenzile **direct cu `library_manager`** (fără `python3 src/main.py`):
+```bash
+# În container:
+library_manager stats
+library_manager add_book "Test" "Autor"
+library_manager export data/backup
+exit
+```
+
+> **💡 Notă:** Comanda `library_manager` funcționează doar **înăuntrul containerului Docker**. Dacă rulați aplicația direct pe Linux/macOS (fără Docker), folosiți `python3 src/main.py`.
+
+#### 💾 Import/Export în modul interactiv
+
+Când lucrați în modul interactiv Docker, **asigurați-vă că exportați datele în folderul montat** (`data/`):
+
+**✅ Corect** (datele rămân pe calculatorul dumneavoastră):
+```bash
+library_manager export data/backup
+```
+
+**❌ Greșit** (datele se pierd la ieșirea din container):
+```bash
+library_manager export backup
+```
+
 ---
 
-### Comenzi Utile Docker (ambele variante)
-> **Notă:** Înlocuiește `library-manager` cu `alx17608/library-manager:latest` dacă folosești imaginea descărcată.
+### Comenzi Utile Docker 
+> **Notă:** Înlocuiți `library-manager` cu `alx17608/library-manager:latest` dacă folosiți **Opțiunea A** (imaginea de pe DockerHub).
 
 | Acțiune | Comandă |
 |---------|---------|
@@ -156,7 +252,22 @@ docker run -it -v "${PWD}/data:/app/data" --entrypoint /bin/sh library-manager
 | Export backup | `docker run -v "${PWD}/data:/app/data" library-manager export data/backup` |
 | Import CSV | `docker run -v "${PWD}/data:/app/data" library-manager import data/carti.csv` |
 
-> **Notă:** Docker vede doar fișierele din folderul `data`. Dacă ai fișierul pe Desktop, copiază-l întâi în `data/`!
+> **Notă:** Docker vede doar fișierele din folderul `data`. Dacă aveți fișierul pe Desktop, copiați-l întâi în `data/`!
+
+---
+
+### Permisiuni Docker (Linux)
+
+Dacă primiți eroarea `permission denied while trying to connect to the Docker daemon socket`, adăugați `sudo` înaintea oricărei comenzi Docker:
+
+```bash
+# Adăugați sudo înaintea oricărei comenzi Docker:
+sudo docker pull alx17608/library-manager:latest
+sudo docker run alx17608/library-manager:latest stats
+sudo docker build -t library-manager .
+```
+
+
 
 ## Resurse folosite
 - [Documentație Python argparse](https://docs.python.org/3/library/argparse.html)
