@@ -27,7 +27,7 @@ Library Manager este o aplicație CLI (Command Line Interface) destinată gestio
 
 ## Cerințe sistem
 - **Python 3.12+** 
-- **Git** (oentru clonare)
+- **Git** (pentru clonare)
 - **Docker** (pentru rularea în container)
 - **Sistem de operare:** Windows, Linux sau macOS
 
@@ -145,13 +145,13 @@ proiect/
 ├── tests/
 │   ├── __init__.py         - Marker pentru pachetul de teste
 │   └── test_main.py        - Teste unitare
-├── .gitignore              - Fișiere excluse din version control
+├── .gitignore              - Fișiere excluse din sistemul de versionare
 ├── Dockerfile              - Configurare pentru containerizare Docker
 ├── library_manager.bat     - Script utilitar pentru rulare rapidă pe Windows
 └── README.md               - Documentația principală a proiectului
 ```
 
-## Decizie de design
+## Decizii de design
 1. **Stocare JSON vs SQL**: Am ales să folosesc fișiere JSON pentru stocarea datelor în locul unei baze de date SQL.
    - *Motiv:* Pentru o bibliotecă mică, setup-ul unui server SQL este o complexitate inutilă. JSON oferă portabilitate maximă (fișierul poate fi copiat/mutat ușor) și este nativ în Python, permițând o dezvoltare rapidă fără dependențe externe grele.
 2. **Arhitectură Monolitică Modulară**: Am păstrat tot codul într-un singur fișier (`main.py`) dar organizat în clasă (`LibraryManager`).

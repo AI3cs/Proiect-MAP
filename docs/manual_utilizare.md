@@ -6,8 +6,10 @@ Această aplicație este un sistem de gestiune a bibliotecii care rulează în l
 ## 1. Instalare și Configurare
 
 ### Cerințe
-- Python 3.12 sau mai nou instalat.
-- Sistem de operare Windows, Linux sau macOS.
+- **Python** 3.12 sau mai nou instalat.
+- **Sistem de operare** Windows, Linux sau macOS.
+- **Git** (pentru clonare)
+- **Docker** (pentru rularea în container)
 
 ### Pași de pornire
 1. Deschideți terminalul în folderul proiectului.
